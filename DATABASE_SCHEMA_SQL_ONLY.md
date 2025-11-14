@@ -1,6 +1,6 @@
 # Database Schema Documentation - SQL Server Only
 
-**Last Updated**: 2025-11-11 (All tables converted to float)
+**Last Updated**: 2025-11-12 (Added iris_manual_data)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -452,6 +452,38 @@ ORDER BY Date DESC
 - `Aviation_*` - Airfare, operations, revenue
 - `Container_volume` - Shipping volumes
 - `Livestock` - Hog, cattle prices
+
+#### `iris_manual_data`
+**Purpose**: Manually collected high-frequency operational and market data
+
+**Dual-purpose table** containing:
+1. **Commodity & Macro Data**: 13 categories including hog prices, chemicals, fertilizer, rice, textile exports, Vietnam banking aggregates
+2. **Alternative Data**: 46 stock tickers with operational metrics (store counts, export volumes, passenger traffic, banking ratios)
+
+**Schema**:
+```sql
+Category      varchar   -- Category grouping (NULL for stock tickers)
+Ticker        varchar   -- Series identifier
+KeyCode       varchar   -- Metric type
+Date          datetime  -- Observation date
+Value         float     -- Numeric value
+Frequency     varchar   -- Daily/Weekly/Monthly
+MeasureUnit   varchar   -- Measurement unit
+UpdatedDate   datetime  -- Last update timestamp
+```
+
+**Key Filtering**:
+```sql
+-- Commodity/Macro data only
+WHERE Category IS NOT NULL
+
+-- Stock ticker alternative data only
+WHERE Category IS NULL
+```
+
+**Data Coverage**: 158K records, 95 tickers, 2000-2025
+
+**📖 For detailed documentation**, see **[IRIS_MANUAL_DATA_GUIDE.md](./IRIS_MANUAL_DATA_GUIDE.md)**
 
 ---
 
