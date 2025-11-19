@@ -22,7 +22,7 @@
 - **Azure SQL**: MCP Server
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
-  - Tables: 39 (financial data, commodities, market intelligence)
+  - Tables: 28+ (financial data, centralized commodities, market intelligence)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -414,44 +414,55 @@ ORDER BY Quality_Score DESC
 
 ---
 
-### Commodity Price Tables
+### Commodity Price Table
 
-All commodity tables follow similar structure:
+#### `Commodity`
+**Purpose**: Centralized commodity price data for all sectors
 
-#### `Steel`, `Metals`, `Energy`, `Chemicals`, `Fertilizer`, etc.
 **Schema**:
 ```sql
 Ticker    varchar     -- Commodity identifier (NOT the same as stock tickers!)
+Sector    varchar     -- Commodity sector/category
 Date      date        -- Price date
 Price     decimal     -- Commodity price
 ```
 
 **IMPORTANT - Ticker Mapping**:
-- Commodity tables use `Ticker` column for commodity identifiers (NOT stock symbols!)
+- The `Commodity` table uses `Ticker` column for commodity identifiers (NOT stock symbols!)
 - Use `Ticker_Reference` table to map commodity names to ticker identifiers
 - **Example**: Query `Ticker_Reference` to find "Iron Ore" → Returns Ticker "ORE62" in Sector "Metals"
 
-**Example Query**:
+**Available Sectors** (10 total):
+- `Agricultural` - Grains, soybeans, corn, wheat, sugar
+- `Chemicals` - Caustic soda, PVC, MEG
+- `Energy` - Crude oil, coal, gas, jet fuel
+- `Fertilizer` - Urea, DAP, NPK
+- `Livestock` - Hog, cattle prices
+- `Metals` - Aluminum, copper, zinc, alumina
+- `Power` - Electricity prices
+- `Shipping_Freight` - Container rates
+- `Steel` - HRC, scrap, rebar
+- `Textile` - Cotton, polyester
+
+**Example Queries**:
 ```sql
 -- Get HRC steel prices for last 30 days
-SELECT Date, Price FROM Steel
-WHERE Ticker = 'HRC' AND Date >= DATEADD(day, -30, GETDATE())
+SELECT Date, Price, Ticker FROM Commodity
+WHERE Sector = 'Steel' AND Ticker = 'HRC' AND Date >= DATEADD(day, -30, GETDATE())
 ORDER BY Date DESC
-```
 
-**Available Commodity Tables**:
-- `Steel` - HRC, scrap, rebar
-- `Metals` - Aluminum, copper, zinc
-- `Energy` - Crude oil, coal, gas
-- `Chemicals` - Caustic soda, PVC
-- `Fertilizer` - Urea, DAP, NPK
-- `Agricultural` - Grains, livestock
-- `Fishery` - Aquaculture products
-- `Textile` - Cotton, polyester
-- `Shipping_Freight` - Container rates
-- `Aviation_*` - Airfare, operations, revenue
-- `Container_volume` - Shipping volumes
-- `Livestock` - Hog, cattle prices
+-- Get all Energy sector commodities for a specific date
+SELECT Ticker, Price FROM Commodity
+WHERE Sector = 'Energy' AND Date = '2025-11-18'
+ORDER BY Ticker
+
+-- Compare prices across sectors
+SELECT Sector, COUNT(DISTINCT Ticker) AS Commodity_Count, AVG(Price) AS Avg_Price
+FROM Commodity
+WHERE Date = (SELECT MAX(Date) FROM Commodity)
+GROUP BY Sector
+ORDER BY Sector
+```
 
 #### `iris_manual_data`
 **Purpose**: Manually collected high-frequency operational and market data
@@ -490,7 +501,7 @@ WHERE Category IS NULL
 ### Reference & Mapping Tables
 
 #### `Ticker_Reference`
-**Purpose**: Commodity lookup table - maps commodity names to SQL price tables
+**Purpose**: Commodity lookup table - maps commodity names to sectors in the Commodity table
 
 **⚠️ CRITICAL - Start Here for Commodity Price Queries**:
 This is the **first table to query** when looking up commodity prices!
@@ -499,29 +510,29 @@ This is the **first table to query** when looking up commodity prices!
 ```sql
 Ticker       varchar     -- Commodity identifier (e.g., "ORE62", "AACNPC01 SMMC Index")
 Name         varchar     -- Commodity name (e.g., "Ore 62", "Alumina")
-Sector       varchar     -- SQL table name (e.g., "Metals" → dbo.Metals table)
+Sector       varchar     -- Commodity sector (e.g., "Metals", "Steel", "Energy")
 Data_Source  varchar     -- Source system
 Active       bit         -- Active status
 ```
 
 **Key Mapping Rules**:
-1. **Sector → SQL Table Name**: `Sector` column tells you which price table to query
-   - Sector = "Metals" → Query `dbo.Metals`
-   - Sector = "Steel" → Query `dbo.Steel`
-   - Sector = "Energy" → Query `dbo.Energy`
+1. **Sector → Commodity Sector Filter**: `Sector` column tells you which sector to filter in the `Commodity` table
+   - Sector = "Metals" → Filter `Commodity WHERE Sector = 'Metals'`
+   - Sector = "Steel" → Filter `Commodity WHERE Sector = 'Steel'`
+   - Sector = "Energy" → Filter `Commodity WHERE Sector = 'Energy'`
 2. **Name**: Human-readable commodity name (e.g., "Ore 62", "Alumina")
-3. **Ticker → Price Query Key**: Use in WHERE clause of commodity price tables
+3. **Ticker → Price Query Key**: Use in WHERE clause of Commodity table
 
 **Example Workflow**:
 ```sql
--- Step 1: Find which table contains Iron Ore
+-- Step 1: Find which sector contains Iron Ore
 SELECT Ticker, Name, Sector FROM Ticker_Reference
 WHERE Name LIKE '%Iron%'
 -- Returns: Ticker = 'ORE62', Name = 'Ore 62', Sector = 'Metals'
 
--- Step 2: Query the commodity price table (dbo.Metals in this case)
-SELECT Date, Price FROM Metals
-WHERE Ticker = 'ORE62'
+-- Step 2: Query the Commodity table with sector and ticker filters
+SELECT Date, Price, Ticker FROM Commodity
+WHERE Sector = 'Metals' AND Ticker = 'ORE62'
 ORDER BY Date DESC
 ```
 
@@ -595,14 +606,15 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
    ```
 
 5. **Commodity Ticker Mapping** ⚠️ **CRITICAL**:
-   - Commodity tables (Steel, Metals, etc.) use `Ticker` for **commodity identifiers**, NOT stock symbols
-   - Always query `Ticker_Reference` first to find which table contains a commodity:
+   - The `Commodity` table uses `Ticker` for **commodity identifiers**, NOT stock symbols
+   - Always query `Ticker_Reference` first to find which sector contains a commodity:
      ```sql
-     -- Get commodity details from Ticker_Reference
-     SELECT tr.Ticker, tr.Name, tr.Sector, s.Price, s.Date
-     FROM Steel s
-     JOIN Ticker_Reference tr ON s.Ticker = tr.Ticker
+     -- Get commodity details from Ticker_Reference and Commodity
+     SELECT tr.Ticker, tr.Name, tr.Sector, c.Price, c.Date
+     FROM Commodity c
+     JOIN Ticker_Reference tr ON c.Ticker = tr.Ticker AND c.Sector = tr.Sector
      WHERE tr.Name LIKE '%Iron Ore%'
+     ORDER BY c.Date DESC
      ```
 
 6. **KEYCODE Variations**:
@@ -622,7 +634,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Question | Table | Key Fields |
 |----------|-------|------------|
 | "NPATMI for ticker MWG" | `FA_Quarterly` | `TICKER`, `KEYCODE`, `VALUE` |
-| **"Check Iron Ore prices"** ⚠️ | **`Ticker_Reference` first!** → then `Metals` | `Name`, `Sector`, `Ticker` |
+| **"Check Iron Ore prices"** ⚠️ | **`Ticker_Reference` first!** → then `Commodity` | `Name`, `Sector`, `Ticker` |
 | "VNINDEX performance" | `MarketIndex` | `COMGROUPCODE`, `INDEXVALUE`, `TRADINGDATE` |
 | "Market breadth / Foreign flows" | `MarketIndex` | `TOTALSTOCKUPPRICE`, `FOREIGNBUYVALUETOTAL` |
 | "Bank ROE comparison" | `BankingMetrics` | `TICKER`, `ROE`, `DATE` |
@@ -630,7 +642,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "P/E, P/B, valuation ratios" | `Market_Data` | `TICKER`, `PE`, `PB`, `PS`, `EV_EBITDA` |
 | "Stock prices (OHLCV)" | `Market_Data` | `TICKER`, `PX_LAST`, `PX_HIGH`, `PX_LOW`, `VOLUME` |
 | "What sector is HPG in?" | `Sector_Map` | `Ticker`, `Sector`, `L1`, `L2` |
-| "Commodity price history" | Commodity tables (`Steel`, `Metals`, etc.) | `Ticker`, `Date`, `Price` |
+| "Commodity price history" | `Commodity` | `Ticker`, `Sector`, `Date`, `Price` |
 | "Which table has a commodity?" | `Ticker_Reference` | `Name`, `Sector` |
 | "Analyst forecasts for VNM" | `Forecast` | `TICKER`, `KEYCODE`, `VALUE`, `FORECASTDATE` |
 | "Target price for stock" | `Forecast` (KEYCODE LIKE '%.Target_Price') | `TICKER`, `VALUE`, `RATING` |
@@ -645,7 +657,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Stock financials | `FA_Quarterly`, `FA_Annual` |
 | Analyst forecasts | `Forecast`, `Forecast_Consensus` |
 | Target prices & ratings | `Forecast` (broker-specific KEYCODE) |
-| Commodity prices | `Steel`, `Metals`, `Energy`, etc. |
+| Commodity prices | `Commodity` (filter by Sector) |
 | Commodity price lookup | `Ticker_Reference` (commodities only!) |
 | Stock sector mapping | `Sector_Map` |
 | Valuation multiples (PE, PB, PS) | `Market_Data` |
