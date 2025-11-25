@@ -1,6 +1,6 @@
 # MCP SQL Server Query Best Practices
 
-**Last Updated**: 2025-11-11 (All tables now float - no TRY_CAST needed)
+**Last Updated**: 2025-11-25 (CTEs now supported, Azure CLI silent auth)
 **Purpose**: Proven patterns for querying Azure SQL via Microsoft SQL MCP Server
 
 ---
@@ -15,9 +15,9 @@ Based on extensive stress testing with the Microsoft SQL MCP Server, this docume
 
 **Key Findings**:
 - ✅ Window functions work excellently (use liberally)
-- ✅ Derived tables (subqueries in FROM) are the alternative to CTEs
+- ✅ CTEs (WITH clause) now fully supported
+- ✅ Derived tables (subqueries in FROM) work as alternative to CTEs
 - ✅ 2-3 table JOINs work reliably
-- ❌ CTEs (WITH clause) fail security validation
 - ❌ Correlated subqueries in SELECT clause fail
 - ❌ 4+ table JOINs become unreliable
 
@@ -50,10 +50,12 @@ WHERE KEYCODE = 'NPATMI'
 (Value1 - Value2) / NULLIF(Value2, 0) * 100
 ```
 
-### 3. NO CTEs - Use Derived Tables Instead
+### 3. CTEs (WITH Clause) Now Supported
+
+**UPDATE (2025-11-25)**: CTEs are now fully supported after MCP server update.
 
 ```sql
--- ❌ FAILS - Security validation error
+-- ✅ NOW WORKS - CTEs enabled
 WITH ForecastAvg AS (
     SELECT TICKER, AVG(VALUE) AS Avg_Forecast
     FROM Forecast
@@ -61,7 +63,7 @@ WITH ForecastAvg AS (
 )
 SELECT * FROM ForecastAvg
 
--- ✅ WORKS - Derived table in FROM clause
+-- ✅ ALSO WORKS - Derived table alternative
 SELECT *
 FROM (
     SELECT TICKER, AVG(VALUE) AS Avg_Forecast
@@ -69,6 +71,10 @@ FROM (
     GROUP BY TICKER
 ) AS ForecastAvg
 ```
+
+**When to use CTEs vs Derived Tables**:
+- CTEs: Better readability for multi-step queries, self-referencing logic
+- Derived tables: Simpler for single subquery scenarios
 
 ### 4. NO Correlated Subqueries in SELECT
 
@@ -393,25 +399,7 @@ COUNT(DISTINCT fa.DATE) AS Period_Count
 
 ## Common Failure Patterns (Avoid These)
 
-### ❌ Pattern 1: CTEs (WITH clause)
-
-```sql
--- FAILS: Security validation error
-WITH ForecastAvg AS (
-    SELECT TICKER, AVG(VALUE) AS Avg_Forecast
-    FROM Forecast
-    GROUP BY TICKER
-)
-SELECT * FROM ForecastAvg
-```
-
-**Error**: "Security validation failed: Query must start with SELECT"
-
-**Solution**: Use derived tables instead (see Pattern 3 above)
-
----
-
-### ❌ Pattern 2: Correlated Subqueries in SELECT
+### ❌ Pattern 1: Correlated Subqueries in SELECT
 
 ```sql
 -- FAILS: Query execution error
@@ -429,7 +417,7 @@ FROM Forecast f
 
 ---
 
-### ❌ Pattern 3: Too Many JOINs (4+)
+### ❌ Pattern 2: Too Many JOINs (4+)
 
 ```sql
 -- OFTEN FAILS: Too complex
@@ -450,7 +438,7 @@ LEFT JOIN BankingMetrics b ON ...
 
 ---
 
-### ❌ Pattern 4: Grouping by Market_Data Columns
+### ❌ Pattern 3: Grouping by Market_Data Columns
 
 ```sql
 -- FAILS: Market_Data has multiple dates per ticker (daily data)
@@ -503,6 +491,7 @@ GROUP BY fq.TICKER, m.PE, m.PB
 - 2-table JOIN with aggregations
 - Window functions with PARTITION BY
 - CASE expressions for pivoting
+- CTEs (WITH clause) - now supported
 - Derived tables (subqueries in FROM)
 - 3-5 aggregate functions
 
@@ -515,7 +504,6 @@ GROUP BY fq.TICKER, m.PE, m.PB
 
 ### ❌ Very High Complexity (Often Fails)
 - 4+ table JOINs
-- CTEs (WITH clause)
 - Correlated subqueries in SELECT
 - Recursive queries
 - PIVOT/UNPIVOT operations
@@ -609,11 +597,10 @@ ORDER BY Forecast_Growth DESC
 
 Before running a complex query, verify:
 
-- [ ] Query starts with SELECT (not WITH)
+- [ ] Query starts with SELECT or WITH (CTEs now supported)
 - [ ] All division uses NULLIF(..., 0)
 - [ ] Using 3 or fewer table JOINs
 - [ ] No correlated subqueries in SELECT clause
-- [ ] Using derived tables instead of CTEs
 - [ ] Filtering on indexed columns (TICKER, DATE, KEYCODE, YEAR)
 - [ ] Using TOP N to limit results
 - [ ] GROUP BY includes all non-aggregated SELECT columns
@@ -629,6 +616,6 @@ Before running a complex query, verify:
 
 ---
 
-**Last Tested**: 2025-11-10
-**Test Dataset**: Forecast, FA_Quarterly, Sector_Map, Valuation tables
-**Success Rate**: 85% for 2-3 table queries, 95% for single/two-table queries
+**Last Tested**: 2025-11-25
+**Test Dataset**: Forecast, FA_Quarterly, Sector_Map, Market_Data tables
+**Success Rate**: 90% for 2-3 table queries, 98% for single/two-table queries (CTEs now supported)

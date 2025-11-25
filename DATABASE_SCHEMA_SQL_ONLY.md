@@ -1,6 +1,6 @@
 # Database Schema Documentation - SQL Server Only
 
-**Last Updated**: 2025-11-12 (Added iris_manual_data)
+**Last Updated**: 2025-11-25 (Added sector operational tables: Steel, Aviation, Power, Container, Brokerage)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -22,7 +22,7 @@
 - **Azure SQL**: MCP Server
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
-  - Tables: 28+ (financial data, centralized commodities, market intelligence)
+  - Tables: 33 (financial data, sector operations, commodities, market intelligence)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -498,6 +498,306 @@ WHERE Category IS NULL
 
 ---
 
+### Sector Operational Data Tables
+
+#### `Steel_data`
+**Purpose**: Vietnam steel industry production, consumption, and inventory by company and product category
+
+**Schema**:
+```sql
+Company Name    nvarchar   -- Steel company name (e.g., "Hoa Sen Group", "Hoa Phat Group")
+Date            date       -- Observation date
+Classification  nvarchar   -- Data type: Production, Consumption, Inventory
+Channel         nvarchar   -- Sales channel: Domestic, Export (empty for Production/Inventory)
+ProductCat      nvarchar   -- Product category
+Value           decimal    -- Metric value
+```
+
+**Product Categories (ProductCat)**:
+- `Galvanized` - Galvanized steel sheets
+- `Rebar` - Construction steel bars
+- `Pipe` - Steel pipes
+- `Hot Roll Steel Coil` - HRC
+- `Cool Roll Steel Coil` - CRC
+- `Electrical Steel Coil` - Electrical steel
+
+**Key Companies**: Hoa Sen Group (HSG), Hoa Phat Group (HPG), Nam Kim Steel (NKG), Ton Dong A (GDA), Formosa Ha Tinh, Pomina Steel
+
+**Data Coverage**: 17,647 records, 2013-2025
+
+**Example Queries**:
+```sql
+-- Get Hoa Sen galvanized steel production
+SELECT Date, Value, Classification, Channel
+FROM Steel_data
+WHERE [Company Name] = 'Hoa Sen Group'
+  AND ProductCat = 'Galvanized'
+  AND Classification = 'Production'
+ORDER BY Date DESC
+
+-- Compare domestic vs export consumption
+SELECT Date, Channel, SUM(Value) as Total_Volume
+FROM Steel_data
+WHERE Classification = 'Consumption' AND ProductCat = 'Galvanized'
+GROUP BY Date, Channel
+ORDER BY Date DESC
+```
+
+---
+
+#### `Aviation_Operations`
+**Purpose**: Vietnam airline operational metrics (passengers, market share, load factor, on-time performance)
+
+**Schema**:
+```sql
+Date            date       -- Observation date
+Period_type     varchar    -- Period type (Monthly, etc.)
+Airline         varchar    -- Airline code/name
+Metric_type     varchar    -- Metric type
+Traffic_type    varchar    -- Domestic, International, N/A
+Metric_value    decimal    -- Metric value
+Unit            varchar    -- Measurement unit
+Created_date    datetime   -- Record creation date
+```
+
+**Airlines**:
+- Listed tickers: HVN (Vietnam Airlines), VJC (Vietjet Air), ACV (Airports Corp)
+- Other: Bamboo, Pacific, VASCO, Vietravel
+
+**Metric Types**:
+- `Passengers` - Passenger count (Domestic/International)
+- `Market_share` - Market share percentage (Domestic/International)
+- `Load_factor` - Aircraft load factor
+- `Flight_count` - Number of flights
+- `Aircraft_count` - Fleet size
+- `OTP` - On-time performance
+
+**Data Coverage**: 1,088 records, 2019-2025
+
+**Example Queries**:
+```sql
+-- Get VJC passenger trends
+SELECT Date, Traffic_type, Metric_value
+FROM Aviation_Operations
+WHERE Airline IN ('VJC', 'Vietjet', 'VietJet Air')
+  AND Metric_type = 'Passengers'
+ORDER BY Date DESC
+
+-- Compare domestic market share
+SELECT Date, Airline, Metric_value as Market_Share
+FROM Aviation_Operations
+WHERE Metric_type = 'Market_share' AND Traffic_type = 'Domestic'
+ORDER BY Date DESC, Market_Share DESC
+```
+
+---
+
+#### `Power_Company_Operations`
+**Purpose**: Power company operational data (generation volume, revenue, average selling price) by plant
+
+**Schema**:
+```sql
+Company    varchar    -- Stock ticker (PC1, REE, HDG, GEG, POW)
+Plant      nvarchar   -- Power plant name
+Date       date       -- Observation date
+Metric     varchar    -- Metric type: volume, revenue, asp, contracted, mobilized
+Value      decimal    -- Metric value
+```
+
+**Companies**: PC1, REE, HDG, GEG, POW
+
+**Metrics**:
+- `volume` - Generation volume (MWh)
+- `revenue` - Revenue
+- `asp` - Average selling price
+- `contracted` - Contracted capacity (POW)
+- `mobilized` - Mobilized capacity (POW)
+- `npat` - Net profit (REE)
+
+**Data Coverage**: 2,753 records, 2018-2025
+
+**Example Queries**:
+```sql
+-- Get REE power generation by plant
+SELECT Date, Plant, Metric, Value
+FROM Power_Company_Operations
+WHERE Company = 'REE' AND Metric = 'volume'
+ORDER BY Date DESC
+
+-- Compare ASP across power companies
+SELECT Company, Date, Value as ASP
+FROM Power_Company_Operations
+WHERE Metric = 'asp' AND Date >= '2024-01-01'
+ORDER BY Date DESC, ASP DESC
+```
+
+---
+
+#### `Power_Metrics`
+**Purpose**: Vietnam power market generation mix by source and economic indicators
+
+**Schema**:
+```sql
+Category     varchar   -- Category: generation, market, economic
+Entity       varchar   -- Source/metric identifier
+Date         varchar   -- Period (e.g., "2024Q3")
+Frequency    varchar   -- Data frequency
+Metric       varchar   -- Sub-metric (for market category)
+Value        decimal   -- Metric value
+Unit         varchar   -- Measurement unit
+```
+
+**Categories & Entities**:
+- **generation**: COAL, HYDRO, GAS, RENEWABLES, IMPORT, GSO_TOTAL, HND, QTP, PPC
+- **market**: coal, hydro, gas, wind, solar_farm, rooftop_regular, rooftop_bidding, oil, import, other, load, price
+- **economic**: gdp_growth, power_yoy, industry_yoy, ONI, thermal_alpha, hydro_alpha
+
+**Data Coverage**: 10,240 records, 2011Q1-2025Q4
+
+**Example Queries**:
+```sql
+-- Get generation mix by source
+SELECT Date, Entity, Value
+FROM Power_Metrics
+WHERE Category = 'generation' AND Date LIKE '2024%'
+ORDER BY Date, Entity
+
+-- Track wholesale electricity prices
+SELECT Date, Value as Weighted_Avg_Price
+FROM Power_Metrics
+WHERE Category = 'market' AND Entity = 'price'
+ORDER BY Date DESC
+```
+
+---
+
+#### `Power_Reservoir_Metrics`
+**Purpose**: Hydropower reservoir water levels across Vietnam (38 reservoirs, 6 regions)
+
+**Schema**:
+```sql
+Region      nvarchar   -- Geographic region (Vietnamese names)
+Reservoir   nvarchar   -- Reservoir name
+Datetime    datetime   -- Observation timestamp
+Metric      varchar    -- Metric type
+Value       decimal    -- Water level/volume
+```
+
+**Regions**: Tây Bắc Bộ, Đông Bắc Bộ, Bắc Trung Bộ, Nam Trung Bộ, Tây Nguyên, Đông Nam Bộ
+
+**Major Reservoirs**: Hòa Bình, Sơn La, Lai Châu, Trị An, Ialy, Đồng Nai 3/4
+
+**Data Coverage**: 60,619 records, 2020-2025 (sub-daily frequency)
+
+**Example Queries**:
+```sql
+-- Get latest reservoir levels
+SELECT Region, Reservoir, Datetime, Value
+FROM Power_Reservoir_Metrics
+WHERE Datetime >= DATEADD(day, -7, GETDATE())
+ORDER BY Datetime DESC
+
+-- Track Hoa Binh reservoir over time
+SELECT Datetime, Value
+FROM Power_Reservoir_Metrics
+WHERE Reservoir = 'Hòa Bình'
+ORDER BY Datetime DESC
+```
+
+---
+
+#### `Container_volume`
+**Purpose**: Vietnam port container throughput by company and port
+
+**Schema**:
+```sql
+Date              datetime2   -- Observation date
+Region            nvarchar    -- Northern, Southern, Central
+Company           nvarchar    -- Port operator ticker
+Port              nvarchar    -- Port name
+Total throughput  float       -- Container volume (TEUs)
+```
+
+**Regions & Key Ports**:
+- **Northern**: Hai Phong ports - PHP (Đình Vũ, Tân Vũ), VSC (Green, VIP Green), SNP (Lạch Huyện), GMD (Nam Đình Vũ)
+- **Southern**: Ho Chi Minh/Vung Tau - SNP (Cat Lai, TCIT), GMD (GEMALINK), SGP (Sai Gon)
+- **Central**: CDN (Da Nang)
+
+**Companies (Tickers)**: PHP, VSC, SNP, GMD, SGP, PDN, CDN, PAP, MVN
+
+**Data Coverage**: 1,806 records, 2020-2025
+
+**Example Queries**:
+```sql
+-- Get GMD port throughput
+SELECT Date, Port, [Total throughput]
+FROM Container_volume
+WHERE Company = 'GMD'
+ORDER BY Date DESC
+
+-- Compare regional throughput
+SELECT Date, Region, SUM([Total throughput]) as Total_TEUs
+FROM Container_volume
+WHERE Date >= '2024-01-01'
+GROUP BY Date, Region
+ORDER BY Date DESC
+```
+
+---
+
+#### `BrokerageMetrics`
+**Purpose**: Vietnamese securities brokerage firm financial metrics (similar structure to BankingMetrics)
+
+**Schema**:
+```sql
+TICKER          nvarchar   -- Brokerage ticker (SSI, VCI, HCM, VND, etc.)
+ORGANCODE       nvarchar   -- Organization code
+YEARREPORT      bigint     -- Report year
+LENGTHREPORT    bigint     -- Quarter (1-4)
+ACTUAL          bit        -- 1 = Actual, 0 = Estimated
+QUARTER_LABEL   nvarchar   -- Quarter label
+STARTDATE       nvarchar   -- Period start
+ENDDATE         nvarchar   -- Period end
+KEYCODE         nvarchar   -- Metric identifier
+KEYCODE_NAME    nvarchar   -- Metric name
+VALUE           float      -- Metric value
+_content_hash   nvarchar   -- Data integrity hash
+```
+
+**Key Tickers** (127 total): SSI, VCI, HCM, VND, MBS, FPTS, VIX, SHS, TVS, VCSC, BSI, CTS, AGR, FTS
+
+**Key KEYCODEs** (201 total):
+
+| Category | KEYCODEs |
+|----------|----------|
+| **Profitability** | `NPATMI`, `NPAT`, `PBT`, `EBIT`, `ROE`, `ROA` |
+| **Revenue/Income** | `Net_Revenue`, `Net_Brokerage_Income`, `Net_Interest_Income`, `Net_Investment`, `Net_Fee_Income`, `Net_Margin_lending_Income`, `Net_Trading_Income`, `Net_IB_Income`, `Total_Operating_Income` |
+| **Balance Sheet** | `TOTAL_Asset`, `TOTAL_Equity`, `Total_Liabilities`, `Cash_Equivalent`, `Total_Debt`, `ST_Debt`, `LT_Debt`, `Margin_Lending_book` |
+| **Valuation** | `EPS`, `BVPS`, `P/E`, `P/B`, `P/S`, `MarketCap`, `Target_Price` |
+| **Ratios** | `CIR`, `NIM`, `Debt_Equity`, `Asset_Equity`, `Investment_Yield`, `Dividend_Ratio`, `Interest_Coverage_Ratio` |
+| **Margin Lending** | `Margin_Lending_book`, `MARGIN_LENDING_RATE`, `MARGIN_EQUITY_RATIO`, `MarginLending_Equity`, `MarginLending_TotalAsset` |
+| **Trading Volume** | `Institution_shares_trading_value`, `Investor_shares_trading_value`, `Institution_bond_trading_value`, `Investor_bond_trading_value` |
+| **Investment Portfolio** | `AFS_MV`, `FVTPL_MV`, `HTM_BV`, `bonds_cost`, `bonds_market_value`, `mtm_equities_cost`, `mtm_equities_market_value` |
+
+**Data Coverage**: 495,281 records
+
+**Example Queries**:
+```sql
+-- Get SSI quarterly metrics
+SELECT YEARREPORT, LENGTHREPORT, KEYCODE, KEYCODE_NAME, VALUE
+FROM BrokerageMetrics
+WHERE TICKER = 'SSI' AND ACTUAL = 1 AND YEARREPORT = 2024
+ORDER BY LENGTHREPORT DESC, KEYCODE
+
+-- Compare brokerage profitability
+SELECT TICKER, VALUE as NPATMI
+FROM BrokerageMetrics
+WHERE KEYCODE = 'NPATMI' AND YEARREPORT = 2024 AND LENGTHREPORT = 3 AND ACTUAL = 1
+ORDER BY VALUE DESC
+```
+
+---
+
 ### Reference & Mapping Tables
 
 #### `Ticker_Reference`
@@ -647,6 +947,13 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "Analyst forecasts for VNM" | `Forecast` | `TICKER`, `KEYCODE`, `VALUE`, `FORECASTDATE` |
 | "Target price for stock" | `Forecast` (KEYCODE LIKE '%.Target_Price') | `TICKER`, `VALUE`, `RATING` |
 | "Consensus forecasts" | `Forecast_Consensus` | `TICKER`, `KEYCODE`, `VALUE` |
+| "Steel production/consumption" | `Steel_data` | `Company Name`, `ProductCat`, `Classification`, `Value` |
+| "Airline passengers/market share" | `Aviation_Operations` | `Airline`, `Metric_type`, `Traffic_type`, `Metric_value` |
+| "Power company operations" | `Power_Company_Operations` | `Company`, `Plant`, `Metric`, `Value` |
+| "Power generation mix" | `Power_Metrics` | `Category`, `Entity`, `Value` |
+| "Reservoir water levels" | `Power_Reservoir_Metrics` | `Reservoir`, `Region`, `Value` |
+| "Port container throughput" | `Container_volume` | `Company`, `Port`, `Total throughput` |
+| "Brokerage firm metrics" | `BrokerageMetrics` | `TICKER`, `KEYCODE`, `VALUE` |
 
 ---
 
@@ -665,6 +972,13 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Stock prices (OHLCV) | `Market_Data` |
 | Market indices (VNINDEX, VN30, etc.) | `MarketIndex` |
 | Banking metrics | `BankingMetrics` |
+| Brokerage metrics | `BrokerageMetrics` |
+| Steel industry operations | `Steel_data` |
+| Aviation operations | `Aviation_Operations` |
+| Power company operations | `Power_Company_Operations` |
+| Power market/generation | `Power_Metrics` |
+| Reservoir levels | `Power_Reservoir_Metrics` |
+| Port container volume | `Container_volume` |
 
 ---
 

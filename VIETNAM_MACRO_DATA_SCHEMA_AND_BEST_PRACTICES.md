@@ -1,6 +1,6 @@
 # Vietnam Macro Data - Database Schema & Query Best Practices
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-25 (CTEs now supported)
 **MCP Server**: VietnamMacroData (Read-Only, Table-Filtered)
 **Purpose**: Schema documentation and proven query patterns for Vietnam macroeconomic data analysis
 
@@ -225,12 +225,40 @@ ORDER BY Year DESC, name
 
 ---
 
-### Pattern 3: Year-over-Year Growth with Derived Tables
+### Pattern 3: Year-over-Year Growth with CTEs (Now Supported)
 
 **Use Case**: Calculate YoY growth rates
 
 ```sql
--- YoY growth in GDP by comparing annual values
+-- ✅ CTE approach (NOW WORKS - updated 2025-11-25)
+WITH CurrentYear AS (
+    SELECT id, name, YEAR(date) AS Year, AVG(value) AS Avg_Value
+    FROM dbo.ceic_macro_data
+    WHERE name LIKE '%GDP%' AND YEAR(date) = 2024
+    GROUP BY id, name, YEAR(date)
+),
+PreviousYear AS (
+    SELECT id, YEAR(date) AS Year, AVG(value) AS Avg_Value
+    FROM dbo.ceic_macro_data
+    WHERE name LIKE '%GDP%' AND YEAR(date) = 2023
+    GROUP BY id, YEAR(date)
+)
+SELECT TOP 10
+    c.id,
+    c.name,
+    c.Year AS Current_Year,
+    c.Avg_Value AS Current_Value,
+    p.Avg_Value AS Previous_Value,
+    (c.Avg_Value - p.Avg_Value) / NULLIF(p.Avg_Value, 0) * 100 AS YoY_Growth_Pct
+FROM CurrentYear c
+LEFT JOIN PreviousYear p ON c.id = p.id
+WHERE p.Avg_Value IS NOT NULL
+ORDER BY YoY_Growth_Pct DESC
+```
+
+**Alternative: Derived Tables Approach**
+```sql
+-- Also works - derived tables in FROM clause
 SELECT TOP 10
     Current.id,
     Current.name,
@@ -254,12 +282,10 @@ WHERE Previous.Avg_Value IS NOT NULL
 ORDER BY YoY_Growth_Pct DESC
 ```
 
-**Why This Pattern Works**:
-- Derived tables isolate year-specific aggregations
-- LEFT JOIN preserves all current-year series
-- NULLIF prevents division by zero
-- Clear, readable structure
-- Filter NULL to show only comparable series
+**When to Use CTEs vs Derived Tables**:
+- CTEs: Better readability for multi-step queries, reusable references
+- Derived tables: Simpler for single subquery scenarios
+- Both now work reliably with the MCP server
 
 ---
 
@@ -567,7 +593,7 @@ Before running a macro data query, verify:
 - [ ] Filtering on indexed columns (id, date) when possible
 - [ ] Using TOP N to limit exploratory queries
 - [ ] Window functions for time-series calculations (LAG, AVG OVER, etc.)
-- [ ] Derived tables instead of CTEs (WITH clause not supported)
+- [ ] CTEs (WITH clause) or derived tables for complex queries - both now supported
 - [ ] GROUP BY includes all non-aggregated SELECT columns
 - [ ] Not fetching unnecessary warehouse columns (W_*)
 - [ ] Series identification via id or name pattern matching
@@ -586,6 +612,6 @@ Before running a macro data query, verify:
 - 545 unique economic series
 - 151K+ data points
 
-**Last Tested**: 2025-11-12
+**Last Tested**: 2025-11-25
 **Test Queries**: 12+ patterns validated
-**Success Rate**: 100% for properly formatted queries
+**Success Rate**: 100% for properly formatted queries (CTEs now supported)
