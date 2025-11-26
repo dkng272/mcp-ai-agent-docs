@@ -76,7 +76,47 @@ result = {
 
 ## Critical Rules (Always Follow)
 
-### 1. Use SQL JOINs for Related Data
+### 1. NO Import Statements
+
+**All packages are pre-imported and ready to use. DO NOT add import statements.**
+
+Available without imports:
+- `pd` (pandas)
+- `np` (numpy)
+- `scipy`, `stats` (scipy.stats)
+- `sklearn` (scikit-learn with submodules)
+- `query()` (SQL query function)
+
+**✅ CORRECT**:
+```python
+df = query("SELECT * FROM Sales")
+result = df.groupby('region')['amount'].sum().to_dict()
+```
+
+**❌ WRONG**:
+```python
+import pandas as pd  # ❌ Don't do this
+df = query("SELECT * FROM Sales")
+```
+
+### 2. Always Assign to 'result' Variable
+
+The tool only returns what's assigned to `result`. Nothing else gets returned.
+
+**✅ CORRECT**:
+```python
+df = query("SELECT Region, Revenue FROM Sales")
+result = df.groupby('Region')['Revenue'].sum().to_dict()
+```
+
+**❌ WRONG**:
+```python
+df = query("SELECT Region, Revenue FROM Sales")
+summary = df.groupby('Region')['Revenue'].sum().to_dict()
+# ❌ Nothing returned - forgot to assign to 'result'
+```
+
+### 3. Use SQL JOINs for Related Data
 
 **✅ CORRECT - Use SQL JOIN**:
 ```python
@@ -376,12 +416,29 @@ tickers = df['Ticker'].tolist()  # Not 'TICKER'
 
 ## Available Packages
 
-| Package | Import As | Common Uses |
-|---------|-----------|-------------|
+**⚠️ IMPORTANT: DO NOT add import statements. All packages are pre-imported and ready to use.**
+
+| Package | Already Available As | Common Uses |
+|---------|---------------------|-------------|
 | pandas | `pd` | DataFrames, groupby, merge, pivot_table |
 | numpy | `np` | Numerical operations, statistics |
 | scipy | `scipy`, `stats` | Statistical tests, distributions |
 | scikit-learn | `sklearn` | Preprocessing, clustering |
+
+### Usage Examples
+
+**✅ CORRECT - No imports needed**:
+```python
+df = query("SELECT * FROM Sales")
+df['total'] = df['price'] * df['quantity']  # Use pd directly
+result = df.groupby('region')['total'].sum().to_dict()
+```
+
+**❌ WRONG - Don't add imports**:
+```python
+import pandas as pd  # ❌ ERROR - pd is already available
+import numpy as np   # ❌ ERROR - np is already available
+```
 
 ### sklearn Submodules
 
