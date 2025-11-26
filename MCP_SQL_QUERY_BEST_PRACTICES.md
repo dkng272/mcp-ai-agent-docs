@@ -1,6 +1,6 @@
 # MCP SQL Server Query Best Practices
 
-**Last Updated**: 2025-11-25 (CTEs now supported, Azure CLI silent auth)
+**Last Updated**: 2025-11-26 (Added execute_python tool selection guide)
 **Purpose**: Proven patterns for querying Azure SQL via Microsoft SQL MCP Server
 
 ---
@@ -20,6 +20,21 @@ Based on extensive stress testing with the Microsoft SQL MCP Server, this docume
 - ✅ 2-3 table JOINs work reliably
 - ❌ Correlated subqueries in SELECT clause fail
 - ❌ 4+ table JOINs become unreliable
+
+---
+
+## Tool Selection Guide
+
+| Scenario | Tool | Why |
+|----------|------|-----|
+| Simple lookup (<100 rows) | `read_data` | Direct, fast |
+| Single SQL aggregation | `read_data` | SQL aggregates are efficient |
+| Complex multi-step analysis | `execute_python` | pandas processing power |
+| Large datasets (1000+ rows) | `execute_python` | 99% context reduction |
+| Rolling/window calculations | `execute_python` | pandas rolling() functions |
+| Multiple related analyses | `execute_python` | Process all in one call |
+
+📖 **For execute_python patterns, see [EXECUTE_PYTHON_BEST_PRACTICES.md](EXECUTE_PYTHON_BEST_PRACTICES.md)**
 
 ---
 
