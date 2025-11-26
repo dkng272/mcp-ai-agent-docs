@@ -382,7 +382,6 @@ tickers = df['Ticker'].tolist()  # Not 'TICKER'
 | numpy | `np` | Numerical operations, statistics |
 | scipy | `scipy`, `stats` | Statistical tests, distributions |
 | scikit-learn | `sklearn` | Preprocessing, clustering |
-| matplotlib | `plt` | Charts via `save_plot()` |
 
 ### sklearn Submodules
 
@@ -395,22 +394,14 @@ sklearn['metrics']         # silhouette_score
 
 ---
 
-## Chart Generation
+## Visualization
 
-```python
-df = query("SELECT quarter, revenue FROM Sales WHERE year >= 2022")
+For charts and visualizations:
+1. Use execute_python to aggregate/summarize large datasets
+2. Return the small summary to Claude
+3. Create visualizations locally with the aggregated data
 
-plt.figure(figsize=(10, 6))
-plt.bar(df['quarter'], df['revenue'])
-plt.title('Quarterly Revenue')
-plt.xlabel('Quarter')
-plt.ylabel('Revenue')
-
-result = {
-    "chart": save_plot(),  # Returns base64-encoded PNG
-    "total_revenue": df['revenue'].sum()
-}
-```
+This keeps execute_python focused on server-side data processing.
 
 ---
 
