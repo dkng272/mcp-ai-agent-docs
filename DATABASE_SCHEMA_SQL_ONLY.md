@@ -1,6 +1,6 @@
 # Database Schema Documentation - SQL Server Only
 
-**Last Updated**: 2025-11-25 (Added sector operational tables: Steel, Aviation, Power, Container, Brokerage)
+**Last Updated**: 2025-12-10 (Added Market_Data foreign flow columns, Aviation extended tables, Banking rates/writeoff, Bonds issuance, Brokerage propbook, Vietnam credit/deposit)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -22,7 +22,7 @@
 - **Azure SQL**: MCP Server
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
-  - Tables: 33 (financial data, sector operations, commodities, market intelligence)
+  - Tables: 41 (financial data, sector operations, commodities, market intelligence, banking rates, bonds)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -229,11 +229,38 @@ PX_OPEN             float          -- Opening price
 PX_HIGH             float          -- Highest price
 PX_LOW              float          -- Lowest price
 PX_LAST             float          -- Closing price
-VOLUME              float          -- Trading volume
-VALUE               float          -- Trading value
+VOLUME              float          -- Trading volume (matched)
+VALUE               float          -- Trading value (matched)
 
--- Market Cap (float - no TRY_CAST needed!)
+-- Deal/Block Trade Data
+TOTALDEALVOLUME     float          -- Block/deal trade volume
+TOTALDEALVALUE      float          -- Block/deal trade value
+
+-- Market Cap & Shares
 MKT_CAP             float          -- Market capitalization in VND
+SHARES              float          -- Shares outstanding
+
+-- Foreign Trading - Matched Orders
+FOREIGNBUYVALUEMATCHED    float    -- Foreign buy value (matched)
+FOREIGNBUYVOLUMEMATCHED   float    -- Foreign buy volume (matched)
+FOREIGNSELLVALUEMATCHED   float    -- Foreign sell value (matched)
+FOREIGNSELLVOLUMEMATCHED  float    -- Foreign sell volume (matched)
+
+-- Foreign Trading - Deal/Block Orders
+FOREIGNBUYVALUEDEAL       float    -- Foreign buy value (deal/block)
+FOREIGNBUYVOLUMEDEAL      float    -- Foreign buy volume (deal)
+FOREIGNSELLVALUEDEAL      float    -- Foreign sell value (deal)
+FOREIGNSELLVOLUMEDEAL     float    -- Foreign sell volume (deal)
+
+-- Foreign Trading - Total (Matched + Deal)
+FOREIGNBUYVALUETOTAL      float    -- Foreign buy value (total)
+FOREIGNBUYVOLUMETOTAL     float    -- Foreign buy volume (total)
+FOREIGNSELLVALUETOTAL     float    -- Foreign sell value (total)
+FOREIGNSELLVOLUMETOTAL    float    -- Foreign sell volume (total)
+
+-- Foreign Ownership Room
+FOREIGNTOTALROOM          float    -- Total foreign ownership room
+FOREIGNCURRENTROOM        float    -- Current available foreign room
 
 -- Metadata
 UPDATE_TIMESTAMP    datetime       -- Last update time
@@ -242,8 +269,9 @@ UPDATE_TIMESTAMP    datetime       -- Last update time
 **Key Features**:
 - ✅ All numeric fields are **float** (no TRY_CAST required)
 - ✅ Clean column names (PE instead of [P/E], no special characters)
-- ✅ Combines 3 data types: valuation, price/volume, market cap
+- ✅ Combines 5 data types: valuation, price/volume, market cap, foreign flows, ownership room
 - ✅ Date type is `date` (clean, simple)
+- ✅ **Stock-level foreign flow data** (previously only available at index level in MarketIndex)
 - ⚠️ Do NOT use `MC($USm)` from `Sector_Map` - use `MKT_CAP` from this table
 
 **Example Queries**:
@@ -262,6 +290,16 @@ JOIN Sector_Map s ON m.TICKER = s.Ticker
 WHERE s.Sector = 'Steel'
   AND m.TRADE_DATE = (SELECT MAX(TRADE_DATE) FROM Market_Data)
 ORDER BY m.PE ASC
+
+-- Get foreign net buy/sell for a stock (stock-level foreign flow analysis)
+SELECT TICKER, TRADE_DATE,
+       FOREIGNBUYVALUETOTAL - FOREIGNSELLVALUETOTAL AS Foreign_Net_Value,
+       FOREIGNBUYVOLUMETOTAL - FOREIGNSELLVOLUMETOTAL AS Foreign_Net_Volume,
+       FOREIGNCURRENTROOM, FOREIGNTOTALROOM
+FROM Market_Data
+WHERE TICKER = 'VNM'
+ORDER BY TRADE_DATE DESC
+OFFSET 0 ROWS FETCH NEXT 30 ROWS ONLY
 ```
 
 ---
@@ -411,6 +449,74 @@ ORDER BY Quality_Score DESC
 **Purpose**: Analyst commentary on banking/brokerage results
 
 **Common columns**: `TICKER`, `YEARREPORT`, `LENGTHREPORT`, `DATE`, commentary fields
+
+---
+
+#### `Bank_Deposit_Rates`
+**Purpose**: Deposit interest rates by bank and tenure
+
+**Schema**:
+```sql
+Bank              nvarchar   -- Bank name (e.g., "VCB", "Techcombank", "BIDV")
+Date              datetime   -- Rate effective date
+Type              nvarchar   -- Deposit type
+Early_withdrawal  float      -- Early withdrawal rate
+rate_1            float      -- 1-month rate
+rate_3            float      -- 3-month rate
+rate_6            float      -- 6-month rate
+rate_9            float      -- 9-month rate
+rate_12           float      -- 12-month rate
+rate_13           float      -- 13+ month rate
+```
+
+**Banks Covered**: 46 banks including VCB, BIDV, Techcombank, MB, ACB, TPBank, VPBank, HDBank, Sacombank, foreign banks (HSBC, Standard Chartered, Shinhan, UOB)
+
+**Data Coverage**: 14,499 records
+
+**Example Queries**:
+```sql
+-- Compare 12-month deposit rates across major banks
+SELECT Bank, Date, rate_12
+FROM Bank_Deposit_Rates
+WHERE Date = (SELECT MAX(Date) FROM Bank_Deposit_Rates)
+  AND Bank IN ('Vietcombank', 'BIDV', 'Techcombank', 'MB', 'ACB')
+ORDER BY rate_12 DESC
+
+-- Track rate changes for a specific bank
+SELECT Date, rate_6, rate_12
+FROM Bank_Deposit_Rates
+WHERE Bank = 'Techcombank'
+ORDER BY Date DESC
+```
+
+---
+
+#### `Bank_Writeoff`
+**Purpose**: Bank loan write-off data
+
+**Schema**:
+```sql
+TICKER      nvarchar   -- Bank ticker
+DATE        nvarchar   -- Period (e.g., "2024Q3")
+Writeoff    float      -- Write-off amount
+```
+
+**Data Coverage**: 621 records
+
+**Example Queries**:
+```sql
+-- Get write-off trends for VCB
+SELECT DATE, Writeoff
+FROM Bank_Writeoff
+WHERE TICKER = 'VCB'
+ORDER BY DATE DESC
+
+-- Compare write-offs across banks
+SELECT TICKER, DATE, Writeoff
+FROM Bank_Writeoff
+WHERE DATE = '2024Q3'
+ORDER BY Writeoff DESC
+```
 
 ---
 
@@ -588,6 +694,119 @@ SELECT Date, Airline, Metric_value as Market_Share
 FROM Aviation_Operations
 WHERE Metric_type = 'Market_share' AND Traffic_type = 'Domestic'
 ORDER BY Date DESC, Market_Share DESC
+```
+
+---
+
+#### `Aviation_Airfare`
+**Purpose**: Airline ticket pricing data by route, flight time, and booking period
+
+**Schema**:
+```sql
+Date            date       -- Flight date
+Airline         varchar    -- Airline name (Vietnam Airlines, Vietjet, etc.)
+Route           varchar    -- Route code (e.g., SGN-HAN, HAN-DAD)
+Flight_time     varchar    -- Departure time (e.g., "21:00", "08:30")
+Booking_period  varchar    -- Booking lead time (1Q = 1 quarter ahead, etc.)
+Fare            decimal    -- Ticket price
+Created_date    datetime   -- Record creation date
+```
+
+**Airlines**: Vietnam Airlines, Vietjet, Bamboo Airways
+
+**Data Coverage**: 328,807 records
+
+**Example Queries**:
+```sql
+-- Get average fare by route and airline
+SELECT Airline, Route, AVG(Fare) as Avg_Fare
+FROM Aviation_Airfare
+WHERE Date >= DATEADD(month, -1, GETDATE())
+GROUP BY Airline, Route
+ORDER BY Route, Avg_Fare
+
+-- Compare fares for SGN-HAN route
+SELECT Date, Airline, AVG(Fare) as Avg_Fare
+FROM Aviation_Airfare
+WHERE Route = 'SGN-HAN' AND Date >= '2025-01-01'
+GROUP BY Date, Airline
+ORDER BY Date DESC
+```
+
+---
+
+#### `Aviation_Market`
+**Purpose**: Vietnam aviation market metrics (fuel prices, passenger mix by country, throughput)
+
+**Schema**:
+```sql
+Date            date       -- Observation date
+Metric_type     varchar    -- Metric category
+Metric_name     varchar    -- Specific metric
+Metric_value    decimal    -- Value
+Unit            varchar    -- Measurement unit
+Created_date    datetime   -- Record creation date
+```
+
+**Metric Types**:
+- `Fuel_price` - Singapore jet fuel prices
+- `Passenger_mix` - International passenger breakdown by country (China, Korea, Japan, Taiwan, USA, Australia, Thailand, Singapore, India, Others)
+- `Throughput` - Domestic and International passenger throughput
+
+**Data Coverage**: 308 records
+
+**Example Queries**:
+```sql
+-- Get passenger mix by country
+SELECT Date, Metric_name as Country, Metric_value as Passengers
+FROM Aviation_Market
+WHERE Metric_type = 'Passenger_mix'
+ORDER BY Date DESC, Metric_value DESC
+
+-- Track fuel prices
+SELECT Date, Metric_value as Fuel_Price
+FROM Aviation_Market
+WHERE Metric_type = 'Fuel_price'
+ORDER BY Date DESC
+```
+
+---
+
+#### `Aviation_Revenue`
+**Purpose**: Airline revenue breakdown by type (HVN, VJC)
+
+**Schema**:
+```sql
+Date            date       -- Observation date
+Year            int        -- Calendar year
+Quarter         int        -- Quarter (1-4)
+Airline         varchar    -- Airline ticker (HVN, VJC)
+Revenue_type    varchar    -- Revenue category
+Revenue_amount  decimal    -- Revenue value
+Currency        varchar    -- Currency code
+Created_date    datetime   -- Record creation date
+```
+
+**Airlines & Revenue Types**:
+- **HVN**: Pax, Cargo, Charter, Other
+- **VJC**: Domestic pax, International pax, Ancilliary, Charter
+
+**Data Coverage**: 80 records
+
+**Example Queries**:
+```sql
+-- Compare revenue mix for VJC
+SELECT Year, Quarter, Revenue_type, Revenue_amount
+FROM Aviation_Revenue
+WHERE Airline = 'VJC'
+ORDER BY Year DESC, Quarter DESC, Revenue_amount DESC
+
+-- Track HVN revenue trends
+SELECT Year, Quarter, SUM(Revenue_amount) as Total_Revenue
+FROM Aviation_Revenue
+WHERE Airline = 'HVN'
+GROUP BY Year, Quarter
+ORDER BY Year DESC, Quarter DESC
 ```
 
 ---
@@ -798,6 +1017,128 @@ ORDER BY VALUE DESC
 
 ---
 
+#### `Brokerage_Propbook`
+**Purpose**: Brokerage firm proprietary book holdings (what stocks brokerages hold in their trading books)
+
+**Schema**:
+```sql
+Ticker      varchar    -- Brokerage ticker (SSI, VCI, HCM, VND, etc.)
+Quarter     varchar    -- Period (e.g., "2024Q3")
+Holdings    varchar    -- Stock ticker held in propbook
+Keycode     varchar    -- Metric type
+Value       float      -- Position value
+```
+
+**Brokerages Covered**: SSI, VCI, HCM, VND, SHS, VIX, CTS, FTS, BSI, VDS, DSE, OCBS, LBPS
+
+**Holdings Types**: Individual stock tickers (FPT, MBB, VPB, etc.), PBT (proprietary bond trading), OTHERS (aggregated smaller positions)
+
+**Data Coverage**: 322 records
+
+**Example Queries**:
+```sql
+-- Get SSI proprietary book holdings
+SELECT Quarter, Holdings, Value
+FROM Brokerage_Propbook
+WHERE Ticker = 'SSI'
+ORDER BY Quarter DESC, Value DESC
+
+-- Find which brokerages hold FPT
+SELECT Ticker as Brokerage, Quarter, Value
+FROM Brokerage_Propbook
+WHERE Holdings = 'FPT'
+ORDER BY Value DESC
+```
+
+---
+
+### Capital Markets Tables
+
+#### `Bonds_Issuance`
+**Purpose**: Corporate bond issuance data (issuer, rate, term, sector)
+
+**Schema**:
+```sql
+id                          int        -- Record ID
+issuer                      nvarchar   -- Issuer name (Vietnamese)
+bond_code                   nvarchar   -- Bond identifier
+industry_sector             nvarchar   -- Industry sector
+issuance_value_billion_vnd  float      -- Issuance value in billion VND
+issuance_method             nvarchar   -- Issuance method
+interest_rate               nvarchar   -- Interest rate (fixed or floating)
+issue_date                  date       -- Bond issue date
+issue_date_str              nvarchar   -- Issue date string format
+term_years                  int        -- Bond term in years
+source_file                 nvarchar   -- Source document
+report_week_start           date       -- Report period start
+report_week_end             date       -- Report period end
+report_month                nvarchar   -- Report month
+report_year                 int        -- Report year
+extracted_at                datetime   -- Data extraction timestamp
+created_at                  datetime   -- Record creation timestamp
+```
+
+**Industry Sectors**: Banking, Real Estate, Securities, Manufacturing, Energy, etc.
+
+**Data Coverage**: 847 records
+
+**Example Queries**:
+```sql
+-- Get recent bond issuances by sector
+SELECT industry_sector, issuer, issuance_value_billion_vnd, interest_rate, term_years, issue_date
+FROM Bonds_Issuance
+WHERE issue_date >= DATEADD(month, -3, GETDATE())
+ORDER BY issue_date DESC
+
+-- Analyze banking sector bond issuance
+SELECT issuer, SUM(issuance_value_billion_vnd) as Total_Issuance, AVG(term_years) as Avg_Term
+FROM Bonds_Issuance
+WHERE industry_sector = 'Banking' AND report_year = 2025
+GROUP BY issuer
+ORDER BY Total_Issuance DESC
+```
+
+---
+
+### Macro Data Tables
+
+#### `Vietnam_Credit_Deposit`
+**Purpose**: Vietnam banking system aggregate credit, deposit, and M2 money supply data
+
+**Schema**:
+```sql
+date                    datetime   -- Observation date
+credit_vnd_bn           float      -- Total credit outstanding (billion VND)
+credit_growth_ytd_pct   float      -- Credit growth YTD (%)
+credit_growth_yoy_pct   float      -- Credit growth YoY (%)
+deposit_vnd_bn          float      -- Total deposits (billion VND)
+deposit_growth_ytd_pct  float      -- Deposit growth YTD (%)
+deposit_growth_yoy_pct  float      -- Deposit growth YoY (%)
+m2                      float      -- M2 money supply
+m2_ytd_pct              float      -- M2 growth YTD (%)
+m2_yoy_pct              float      -- M2 growth YoY (%)
+pure_ldr                float      -- Pure Loan-to-Deposit Ratio
+```
+
+**Data Coverage**: 251 records (monthly data)
+
+**Example Queries**:
+```sql
+-- Get latest credit/deposit data
+SELECT date, credit_vnd_bn, credit_growth_ytd_pct, deposit_vnd_bn, pure_ldr
+FROM Vietnam_Credit_Deposit
+ORDER BY date DESC
+OFFSET 0 ROWS FETCH NEXT 12 ROWS ONLY
+
+-- Track credit growth trends
+SELECT date, credit_growth_yoy_pct, deposit_growth_yoy_pct, pure_ldr
+FROM Vietnam_Credit_Deposit
+WHERE date >= '2024-01-01'
+ORDER BY date
+```
+
+---
+
 ### Reference & Mapping Tables
 
 #### `Ticker_Reference`
@@ -936,8 +1277,13 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "NPATMI for ticker MWG" | `FA_Quarterly` | `TICKER`, `KEYCODE`, `VALUE` |
 | **"Check Iron Ore prices"** ⚠️ | **`Ticker_Reference` first!** → then `Commodity` | `Name`, `Sector`, `Ticker` |
 | "VNINDEX performance" | `MarketIndex` | `COMGROUPCODE`, `INDEXVALUE`, `TRADINGDATE` |
-| "Market breadth / Foreign flows" | `MarketIndex` | `TOTALSTOCKUPPRICE`, `FOREIGNBUYVALUETOTAL` |
+| "Market breadth / Foreign flows (index)" | `MarketIndex` | `TOTALSTOCKUPPRICE`, `FOREIGNBUYVALUETOTAL` |
+| "Foreign flows by stock" | `Market_Data` | `TICKER`, `FOREIGNBUYVALUETOTAL`, `FOREIGNSELLVALUETOTAL` |
+| "Foreign ownership room" | `Market_Data` | `TICKER`, `FOREIGNTOTALROOM`, `FOREIGNCURRENTROOM` |
 | "Bank ROE comparison" | `BankingMetrics` | `TICKER`, `ROE`, `DATE` |
+| "Bank deposit rates" | `Bank_Deposit_Rates` | `Bank`, `rate_12`, `Date` |
+| "Bank write-offs" | `Bank_Writeoff` | `TICKER`, `Writeoff`, `DATE` |
+| "System credit/deposit growth" | `Vietnam_Credit_Deposit` | `credit_growth_yoy_pct`, `pure_ldr` |
 | "Market cap for all stocks" | `Market_Data` | `TICKER`, `MKT_CAP`, `TRADE_DATE` |
 | "P/E, P/B, valuation ratios" | `Market_Data` | `TICKER`, `PE`, `PB`, `PS`, `EV_EBITDA` |
 | "Stock prices (OHLCV)" | `Market_Data` | `TICKER`, `PX_LAST`, `PX_HIGH`, `PX_LOW`, `VOLUME` |
@@ -949,11 +1295,16 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "Consensus forecasts" | `Forecast_Consensus` | `TICKER`, `KEYCODE`, `VALUE` |
 | "Steel production/consumption" | `Steel_data` | `Company Name`, `ProductCat`, `Classification`, `Value` |
 | "Airline passengers/market share" | `Aviation_Operations` | `Airline`, `Metric_type`, `Traffic_type`, `Metric_value` |
+| "Airline ticket prices" | `Aviation_Airfare` | `Airline`, `Route`, `Fare`, `Date` |
+| "Airline revenue breakdown" | `Aviation_Revenue` | `Airline`, `Revenue_type`, `Revenue_amount` |
+| "Passenger mix by country" | `Aviation_Market` | `Metric_type`, `Metric_name`, `Metric_value` |
 | "Power company operations" | `Power_Company_Operations` | `Company`, `Plant`, `Metric`, `Value` |
 | "Power generation mix" | `Power_Metrics` | `Category`, `Entity`, `Value` |
 | "Reservoir water levels" | `Power_Reservoir_Metrics` | `Reservoir`, `Region`, `Value` |
 | "Port container throughput" | `Container_volume` | `Company`, `Port`, `Total throughput` |
 | "Brokerage firm metrics" | `BrokerageMetrics` | `TICKER`, `KEYCODE`, `VALUE` |
+| "Brokerage proprietary holdings" | `Brokerage_Propbook` | `Ticker`, `Holdings`, `Value` |
+| "Corporate bond issuance" | `Bonds_Issuance` | `issuer`, `issuance_value_billion_vnd`, `interest_rate` |
 
 ---
 
@@ -970,11 +1321,21 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Valuation multiples (PE, PB, PS) | `Market_Data` |
 | Market cap | `Market_Data` (MKT_CAP column) |
 | Stock prices (OHLCV) | `Market_Data` |
+| Foreign flows (stock-level) | `Market_Data` (FOREIGNBUY/SELL columns) |
+| Foreign ownership room | `Market_Data` (FOREIGNTOTALROOM, FOREIGNCURRENTROOM) |
 | Market indices (VNINDEX, VN30, etc.) | `MarketIndex` |
 | Banking metrics | `BankingMetrics` |
+| Bank deposit rates | `Bank_Deposit_Rates` |
+| Bank write-offs | `Bank_Writeoff` |
+| System credit/deposit | `Vietnam_Credit_Deposit` |
 | Brokerage metrics | `BrokerageMetrics` |
+| Brokerage prop book | `Brokerage_Propbook` |
+| Corporate bond issuance | `Bonds_Issuance` |
 | Steel industry operations | `Steel_data` |
 | Aviation operations | `Aviation_Operations` |
+| Airline ticket prices | `Aviation_Airfare` |
+| Airline revenue | `Aviation_Revenue` |
+| Aviation market metrics | `Aviation_Market` |
 | Power company operations | `Power_Company_Operations` |
 | Power market/generation | `Power_Metrics` |
 | Reservoir levels | `Power_Reservoir_Metrics` |
