@@ -1,6 +1,6 @@
 # Database Schema Documentation - SQL Server Only
 
-**Last Updated**: 2025-12-10 (Added Market_Data foreign flow columns, Aviation extended tables, Banking rates/writeoff, Bonds issuance, Brokerage propbook, Vietnam credit/deposit)
+**Last Updated**: 2025-12-11 (Added Market_Data foreign flow columns, Aviation extended tables, Banking rates/writeoff, Bonds issuance, Brokerage propbook, Vietnam credit/deposit, IRIS_Company_Comments)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -22,7 +22,7 @@
 - **Azure SQL**: MCP Server
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
-  - Tables: 41 (financial data, sector operations, commodities, market intelligence, banking rates, bonds)
+  - Tables: 42 (financial data, sector operations, commodities, market intelligence, banking rates, bonds, analyst comments)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -1139,6 +1139,55 @@ ORDER BY date
 
 ---
 
+### Analyst Commentary Tables
+
+#### `IRIS_Company_Comments`
+**Purpose**: Analyst commentary and news updates on companies (internal research notes)
+
+**Schema**:
+```sql
+TICKER        nvarchar   -- Stock ticker
+TITLE         nvarchar   -- Comment title/headline
+DESCRIPTION   nvarchar   -- Full comment text
+CATEGORY      nvarchar   -- Comment category
+IMPACT        nvarchar   -- Expected impact assessment
+CREATEDATE    datetime2  -- Creation timestamp
+CREATEBY      nvarchar   -- Author
+UPDATEDATE    datetime2  -- Last update timestamp
+UPDATEBY      nvarchar   -- Updated by
+ISDELETED     bit        -- Soft delete flag
+```
+
+**Categories**: Updates, Reports, Daily, Marketing, RUMORS
+
+**Impact Values**: Positive, Negative, Neutral, In Focus
+
+**Data Coverage**: 8,483 records
+
+**Example Queries**:
+```sql
+-- Get recent company updates
+SELECT TICKER, TITLE, CATEGORY, IMPACT, CREATEDATE
+FROM IRIS_Company_Comments
+WHERE ISDELETED = 0
+ORDER BY CREATEDATE DESC
+OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY
+
+-- Get all comments for a specific ticker
+SELECT TITLE, DESCRIPTION, CATEGORY, IMPACT, CREATEDATE
+FROM IRIS_Company_Comments
+WHERE TICKER = 'VNM' AND ISDELETED = 0
+ORDER BY CREATEDATE DESC
+
+-- Find positive news/updates
+SELECT TICKER, TITLE, CREATEDATE
+FROM IRIS_Company_Comments
+WHERE IMPACT = 'Positive' AND ISDELETED = 0
+ORDER BY CREATEDATE DESC
+```
+
+---
+
 ### Reference & Mapping Tables
 
 #### `Ticker_Reference`
@@ -1305,6 +1354,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "Brokerage firm metrics" | `BrokerageMetrics` | `TICKER`, `KEYCODE`, `VALUE` |
 | "Brokerage proprietary holdings" | `Brokerage_Propbook` | `Ticker`, `Holdings`, `Value` |
 | "Corporate bond issuance" | `Bonds_Issuance` | `issuer`, `issuance_value_billion_vnd`, `interest_rate` |
+| "Analyst comments/news on stocks" | `IRIS_Company_Comments` | `TICKER`, `TITLE`, `IMPACT`, `CREATEDATE` |
 
 ---
 
@@ -1331,6 +1381,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Brokerage metrics | `BrokerageMetrics` |
 | Brokerage prop book | `Brokerage_Propbook` |
 | Corporate bond issuance | `Bonds_Issuance` |
+| Analyst comments/news | `IRIS_Company_Comments` |
 | Steel industry operations | `Steel_data` |
 | Aviation operations | `Aviation_Operations` |
 | Airline ticket prices | `Aviation_Airfare` |
