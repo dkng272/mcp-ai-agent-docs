@@ -102,19 +102,7 @@ YoY          float      -- Year-over-year change
 - **Balance Sheet**: `Total_Asset`, `Cash`, `Inventory`, `Debt`, `Equity`
 - **Cash Flow**: `Operating_CF`, `Capex`, `FCF`
 
-**Example Queries**:
-```sql
--- FA_Quarterly - direct calculation
-SELECT DATE, VALUE AS NPATMI, VALUE * 1.1 AS Projected, YoY * 100 AS YoY_Pct
-FROM FA_Quarterly
-WHERE TICKER = 'MWG' AND KEYCODE = 'NPATMI' AND DATE = '2024Q3'
-
--- FA_Annual - direct calculation
-SELECT DATE, VALUE AS Revenue, YoY * 100 AS YoY_Growth_Pct
-FROM FA_Annual
-WHERE TICKER = 'HPG' AND KEYCODE = 'Net_Revenue'
-ORDER BY YEAR DESC
-```
+**Example**: `SELECT TICKER, DATE, VALUE, YoY FROM FA_Quarterly WHERE KEYCODE = 'NPATMI' AND YEAR = 2024`
 
 ---
 
@@ -150,20 +138,7 @@ _content_hash nvarchar      -- Data integrity hash
 - `AVOID` - Avoid investment
 - `WATCH` - Watch list
 
-**Example Queries**:
-```sql
--- Get firm's NPATMI forecasts for VNM
-SELECT TICKER, DATE, VALUE, RATING, FORECASTDATE
-FROM Forecast
-WHERE TICKER = 'VNM' AND KEYCODE = 'NPATMI'
-ORDER BY DATE
-
--- Get all firm's forecasts with BUY rating
-SELECT TICKER, KEYCODE, DATE, VALUE, FORECASTDATE
-FROM Forecast
-WHERE RATING = 'BUY'
-ORDER BY FORECASTDATE DESC
-```
+**Example**: `SELECT TICKER, DATE, VALUE, RATING FROM Forecast WHERE KEYCODE = 'NPATMI' AND DATE = '2025'`
 
 ---
 
@@ -194,21 +169,7 @@ FORECASTDATE  varchar       -- When forecast was made
 - Analyze broker coverage and sentiment
 - Track forecast changes over time from specific brokers
 
-**Example Queries**:
-```sql
--- Get all broker NPATMI forecasts for VNM
-SELECT TICKER, KEYCODE, DATE, VALUE, FORECASTDATE
-FROM Forecast_Consensus
-WHERE TICKER = 'VNM' AND KEYCODE LIKE '%.NPATMI'
-ORDER BY FORECASTDATE DESC
-
--- Get HSC's latest forecasts
-SELECT TICKER, KEYCODE, DATE, VALUE, RATING
-FROM Forecast_Consensus
-WHERE KEYCODE LIKE 'HSC.%'
-  AND FORECASTDATE = (SELECT MAX(FORECASTDATE) FROM Forecast_Consensus WHERE KEYCODE LIKE 'HSC.%')
-ORDER BY TICKER
-```
+**Example**: `SELECT TICKER, KEYCODE, DATE, VALUE FROM Forecast_Consensus WHERE KEYCODE LIKE '%.NPATMI' AND DATE = '2025'`
 
 ---
 
@@ -232,26 +193,7 @@ CreatedDate   datetime2  -- When forecast was created
 
 **Data Coverage**: 2,882 records
 
-**Example Queries**:
-```sql
--- Get latest NPATMI forecasts for a ticker
-SELECT Ticker, Year, Quarter, Value, CreatedDate
-FROM Forecast_history
-WHERE Ticker = 'VNM'
-ORDER BY Year, Quarter, CreatedDate DESC
-
--- Get annual forecasts (Quarter = 5)
-SELECT Ticker, Year, Value, CreatedDate
-FROM Forecast_history
-WHERE Quarter = 5 AND Year = 2025
-ORDER BY CreatedDate DESC
-
--- Track forecast revisions over time
-SELECT Ticker, Year, Value, CreatedDate
-FROM Forecast_history
-WHERE Ticker = 'FPT' AND Year = 2025 AND Quarter = 5
-ORDER BY CreatedDate
-```
+**Example**: `SELECT Ticker, Year, Quarter, Value, CreatedDate FROM Forecast_history WHERE Ticker = 'VNM' ORDER BY Year DESC, Quarter DESC`
 
 ---
 
@@ -322,33 +264,7 @@ UPDATE_TIMESTAMP    datetime       -- Last update time
 - ✅ **Stock-level foreign flow data** (previously only available at index level in MarketIndex)
 - ⚠️ Do NOT use `MC($USm)` from `Sector_Map` - use `MKT_CAP` from this table
 
-**Example Queries**:
-```sql
--- Get latest valuation multiples for HPG
-SELECT TICKER, TRADE_DATE, PE, PB, PS, EV_EBITDA, MKT_CAP, PX_LAST
-FROM Market_Data
-WHERE TICKER = 'HPG'
-ORDER BY TRADE_DATE DESC
-OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
-
--- Compare PE ratios for steel sector
-SELECT m.TICKER, s.Sector, m.PE, m.PB, m.MKT_CAP
-FROM Market_Data m
-JOIN Sector_Map s ON m.TICKER = s.Ticker
-WHERE s.Sector = 'Steel'
-  AND m.TRADE_DATE = (SELECT MAX(TRADE_DATE) FROM Market_Data)
-ORDER BY m.PE ASC
-
--- Get foreign net buy/sell for a stock (stock-level foreign flow analysis)
-SELECT TICKER, TRADE_DATE,
-       FOREIGNBUYVALUETOTAL - FOREIGNSELLVALUETOTAL AS Foreign_Net_Value,
-       FOREIGNBUYVOLUMETOTAL - FOREIGNSELLVOLUMETOTAL AS Foreign_Net_Volume,
-       FOREIGNCURRENTROOM, FOREIGNTOTALROOM
-FROM Market_Data
-WHERE TICKER = 'VNM'
-ORDER BY TRADE_DATE DESC
-OFFSET 0 ROWS FETCH NEXT 30 ROWS ONLY
-```
+**Example**: `SELECT TICKER, TRADE_DATE, PE, PB, MKT_CAP, PX_LAST FROM Market_Data WHERE TICKER = 'HPG' ORDER BY TRADE_DATE DESC`
 
 ---
 
@@ -405,23 +321,7 @@ FOREIGNSELLVOLUMETOTAL    float          -- Foreign sell volume (total)
 - **Total Return Indices** (TRI): VN30TRI, VN100TRI, VNALLTRI, VNDIVIDENDTRI, VNDTRI, VNFSTRI, VNMIDCAPTRI, VNMITECHTRI, VNSMALLTRI
 - **Other**: VNX50, VNXALL, VNSI, VNMITECH
 
-**Example Queries**:
-```sql
--- Get latest VNINDEX data
-SELECT TRADINGDATE, INDEXVALUE, PERCENTINDEXCHANGE,
-       TOTALSTOCKUPPRICE, TOTALSTOCKDOWNPRICE, TOTALVOLUME
-FROM MarketIndex
-WHERE COMGROUPCODE = 'VNINDEX'
-ORDER BY TRADINGDATE DESC
-OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
-
--- Compare VN30 vs VNINDEX (last 30 days)
-SELECT TRADINGDATE, COMGROUPCODE, INDEXVALUE, PERCENTINDEXCHANGE
-FROM MarketIndex
-WHERE COMGROUPCODE IN ('VNINDEX', 'VN30')
-  AND TRADINGDATE >= DATEADD(day, -30, GETDATE())
-ORDER BY TRADINGDATE DESC, COMGROUPCODE
-```
+**Example**: `SELECT TRADINGDATE, INDEXVALUE, PERCENTINDEXCHANGE FROM MarketIndex WHERE COMGROUPCODE = 'VNINDEX' ORDER BY TRADINGDATE DESC`
 
 ---
 
@@ -476,20 +376,7 @@ Deposit yield   float
 - **ACTUAL**: 1 = Actual data, 0 = Estimated/Forecast
 - **DATE**: When the data was reported/updated
 
-**Example Queries**:
-```sql
--- All metrics - direct calculation
-SELECT TICKER, YEARREPORT, LENGTHREPORT, ROE, NPL, NIM, CASA,
-       OPEX, [Net Interest Income] AS NII, [Provision expense]
-FROM BankingMetrics
-WHERE TICKER = 'VCB' AND YEARREPORT = 2025 AND LENGTHREPORT = 3 AND ACTUAL = 1
-
--- Calculate quality score
-SELECT TICKER, (ROE * 0.4) + ((100 - NPL) * 0.3) + (CASA * 0.3) AS Quality_Score
-FROM BankingMetrics
-WHERE ACTUAL = 1 AND YEARREPORT = 2024 AND LENGTHREPORT = 3
-ORDER BY Quality_Score DESC
-```
+**Example**: `SELECT TICKER, ROE, NPL, NIM, CASA FROM BankingMetrics WHERE YEARREPORT = 2024 AND LENGTHREPORT = 3 AND ACTUAL = 1`
 
 ---
 
@@ -521,21 +408,7 @@ rate_13           float      -- 13+ month rate
 
 **Data Coverage**: 14,499 records
 
-**Example Queries**:
-```sql
--- Compare 12-month deposit rates across major banks
-SELECT Bank, Date, rate_12
-FROM Bank_Deposit_Rates
-WHERE Date = (SELECT MAX(Date) FROM Bank_Deposit_Rates)
-  AND Bank IN ('Vietcombank', 'BIDV', 'Techcombank', 'MB', 'ACB')
-ORDER BY rate_12 DESC
-
--- Track rate changes for a specific bank
-SELECT Date, rate_6, rate_12
-FROM Bank_Deposit_Rates
-WHERE Bank = 'Techcombank'
-ORDER BY Date DESC
-```
+**Example**: `SELECT Bank, rate_6, rate_12 FROM Bank_Deposit_Rates WHERE Date = (SELECT MAX(Date) FROM Bank_Deposit_Rates)`
 
 ---
 
@@ -551,20 +424,7 @@ Writeoff    float      -- Write-off amount
 
 **Data Coverage**: 621 records
 
-**Example Queries**:
-```sql
--- Get write-off trends for VCB
-SELECT DATE, Writeoff
-FROM Bank_Writeoff
-WHERE TICKER = 'VCB'
-ORDER BY DATE DESC
-
--- Compare write-offs across banks
-SELECT TICKER, DATE, Writeoff
-FROM Bank_Writeoff
-WHERE DATE = '2024Q3'
-ORDER BY Writeoff DESC
-```
+**Example**: `SELECT TICKER, DATE, Writeoff FROM Bank_Writeoff WHERE DATE = '2024Q3' ORDER BY Writeoff DESC`
 
 ---
 
@@ -598,25 +458,7 @@ Price     decimal     -- Commodity price
 - `Steel` - HRC, scrap, rebar
 - `Textile` - Cotton, polyester
 
-**Example Queries**:
-```sql
--- Get HRC steel prices for last 30 days
-SELECT Date, Price, Ticker FROM Commodity
-WHERE Sector = 'Steel' AND Ticker = 'HRC' AND Date >= DATEADD(day, -30, GETDATE())
-ORDER BY Date DESC
-
--- Get all Energy sector commodities for a specific date
-SELECT Ticker, Price FROM Commodity
-WHERE Sector = 'Energy' AND Date = '2025-11-18'
-ORDER BY Ticker
-
--- Compare prices across sectors
-SELECT Sector, COUNT(DISTINCT Ticker) AS Commodity_Count, AVG(Price) AS Avg_Price
-FROM Commodity
-WHERE Date = (SELECT MAX(Date) FROM Commodity)
-GROUP BY Sector
-ORDER BY Sector
-```
+**Example**: `SELECT Date, Price, Ticker FROM Commodity WHERE Sector = 'Steel' ORDER BY Date DESC`
 
 #### `iris_manual_data`
 **Purpose**: Manually collected high-frequency operational and market data
@@ -646,9 +488,9 @@ WHERE Category IS NOT NULL
 WHERE Category IS NULL
 ```
 
-**Data Coverage**: 158K records, 95 tickers, 2000-2025
+**Data Coverage**: 37K records, 25 tickers
 
-**📖 For detailed documentation**, see **[IRIS_MANUAL_DATA_GUIDE.md](./IRIS_MANUAL_DATA_GUIDE.md)**
+**Example**: `SELECT DISTINCT Ticker, KeyCode FROM iris_manual_data WHERE Category IS NULL` (stock tickers)
 
 ---
 
@@ -679,23 +521,7 @@ Value           decimal    -- Metric value
 
 **Data Coverage**: 17,647 records, 2013-2025
 
-**Example Queries**:
-```sql
--- Get Hoa Sen galvanized steel production
-SELECT Date, Value, Classification, Channel
-FROM Steel_data
-WHERE [Company Name] = 'Hoa Sen Group'
-  AND ProductCat = 'Galvanized'
-  AND Classification = 'Production'
-ORDER BY Date DESC
-
--- Compare domestic vs export consumption
-SELECT Date, Channel, SUM(Value) as Total_Volume
-FROM Steel_data
-WHERE Classification = 'Consumption' AND ProductCat = 'Galvanized'
-GROUP BY Date, Channel
-ORDER BY Date DESC
-```
+**Example**: `SELECT [Company Name], Date, ProductCat, Classification, Value FROM Steel_data WHERE ProductCat = 'Galvanized' ORDER BY Date DESC`
 
 ---
 
@@ -728,21 +554,7 @@ Created_date    datetime   -- Record creation date
 
 **Data Coverage**: 1,088 records, 2019-2025
 
-**Example Queries**:
-```sql
--- Get VJC passenger trends
-SELECT Date, Traffic_type, Metric_value
-FROM Aviation_Operations
-WHERE Airline IN ('VJC', 'Vietjet', 'VietJet Air')
-  AND Metric_type = 'Passengers'
-ORDER BY Date DESC
-
--- Compare domestic market share
-SELECT Date, Airline, Metric_value as Market_Share
-FROM Aviation_Operations
-WHERE Metric_type = 'Market_share' AND Traffic_type = 'Domestic'
-ORDER BY Date DESC, Market_Share DESC
-```
+**Example**: `SELECT Date, Airline, Metric_type, Traffic_type, Metric_value FROM Aviation_Operations WHERE Metric_type = 'Passengers' ORDER BY Date DESC`
 
 ---
 
@@ -764,22 +576,7 @@ Created_date    datetime   -- Record creation date
 
 **Data Coverage**: 328,807 records
 
-**Example Queries**:
-```sql
--- Get average fare by route and airline
-SELECT Airline, Route, AVG(Fare) as Avg_Fare
-FROM Aviation_Airfare
-WHERE Date >= DATEADD(month, -1, GETDATE())
-GROUP BY Airline, Route
-ORDER BY Route, Avg_Fare
-
--- Compare fares for SGN-HAN route
-SELECT Date, Airline, AVG(Fare) as Avg_Fare
-FROM Aviation_Airfare
-WHERE Route = 'SGN-HAN' AND Date >= '2025-01-01'
-GROUP BY Date, Airline
-ORDER BY Date DESC
-```
+**Example**: `SELECT Airline, Route, AVG(Fare) as Avg_Fare FROM Aviation_Airfare GROUP BY Airline, Route ORDER BY Route`
 
 ---
 
@@ -803,20 +600,7 @@ Created_date    datetime   -- Record creation date
 
 **Data Coverage**: 308 records
 
-**Example Queries**:
-```sql
--- Get passenger mix by country
-SELECT Date, Metric_name as Country, Metric_value as Passengers
-FROM Aviation_Market
-WHERE Metric_type = 'Passenger_mix'
-ORDER BY Date DESC, Metric_value DESC
-
--- Track fuel prices
-SELECT Date, Metric_value as Fuel_Price
-FROM Aviation_Market
-WHERE Metric_type = 'Fuel_price'
-ORDER BY Date DESC
-```
+**Example**: `SELECT Date, Metric_type, Metric_name, Metric_value FROM Aviation_Market ORDER BY Date DESC`
 
 ---
 
@@ -841,21 +625,7 @@ Created_date    datetime   -- Record creation date
 
 **Data Coverage**: 80 records
 
-**Example Queries**:
-```sql
--- Compare revenue mix for VJC
-SELECT Year, Quarter, Revenue_type, Revenue_amount
-FROM Aviation_Revenue
-WHERE Airline = 'VJC'
-ORDER BY Year DESC, Quarter DESC, Revenue_amount DESC
-
--- Track HVN revenue trends
-SELECT Year, Quarter, SUM(Revenue_amount) as Total_Revenue
-FROM Aviation_Revenue
-WHERE Airline = 'HVN'
-GROUP BY Year, Quarter
-ORDER BY Year DESC, Quarter DESC
-```
+**Example**: `SELECT Airline, Year, Quarter, Revenue_type, Revenue_amount FROM Aviation_Revenue ORDER BY Year DESC, Quarter DESC`
 
 ---
 
@@ -883,20 +653,7 @@ Value      decimal    -- Metric value
 
 **Data Coverage**: 2,753 records, 2018-2025
 
-**Example Queries**:
-```sql
--- Get REE power generation by plant
-SELECT Date, Plant, Metric, Value
-FROM Power_Company_Operations
-WHERE Company = 'REE' AND Metric = 'volume'
-ORDER BY Date DESC
-
--- Compare ASP across power companies
-SELECT Company, Date, Value as ASP
-FROM Power_Company_Operations
-WHERE Metric = 'asp' AND Date >= '2024-01-01'
-ORDER BY Date DESC, ASP DESC
-```
+**Example**: `SELECT Company, Plant, Date, Metric, Value FROM Power_Company_Operations WHERE Company = 'REE' ORDER BY Date DESC`
 
 ---
 
@@ -921,20 +678,7 @@ Unit         varchar   -- Measurement unit
 
 **Data Coverage**: 10,240 records, 2011Q1-2025Q4
 
-**Example Queries**:
-```sql
--- Get generation mix by source
-SELECT Date, Entity, Value
-FROM Power_Metrics
-WHERE Category = 'generation' AND Date LIKE '2024%'
-ORDER BY Date, Entity
-
--- Track wholesale electricity prices
-SELECT Date, Value as Weighted_Avg_Price
-FROM Power_Metrics
-WHERE Category = 'market' AND Entity = 'price'
-ORDER BY Date DESC
-```
+**Example**: `SELECT Date, Category, Entity, Value FROM Power_Metrics WHERE Category = 'generation' ORDER BY Date DESC`
 
 ---
 
@@ -956,20 +700,7 @@ Value       decimal    -- Water level/volume
 
 **Data Coverage**: 60,619 records, 2020-2025 (sub-daily frequency)
 
-**Example Queries**:
-```sql
--- Get latest reservoir levels
-SELECT Region, Reservoir, Datetime, Value
-FROM Power_Reservoir_Metrics
-WHERE Datetime >= DATEADD(day, -7, GETDATE())
-ORDER BY Datetime DESC
-
--- Track Hoa Binh reservoir over time
-SELECT Datetime, Value
-FROM Power_Reservoir_Metrics
-WHERE Reservoir = 'Hòa Bình'
-ORDER BY Datetime DESC
-```
+**Example**: `SELECT Region, Reservoir, Datetime, Value FROM Power_Reservoir_Metrics ORDER BY Datetime DESC`
 
 ---
 
@@ -994,21 +725,7 @@ Total throughput  float       -- Container volume (TEUs)
 
 **Data Coverage**: 1,806 records, 2020-2025
 
-**Example Queries**:
-```sql
--- Get GMD port throughput
-SELECT Date, Port, [Total throughput]
-FROM Container_volume
-WHERE Company = 'GMD'
-ORDER BY Date DESC
-
--- Compare regional throughput
-SELECT Date, Region, SUM([Total throughput]) as Total_TEUs
-FROM Container_volume
-WHERE Date >= '2024-01-01'
-GROUP BY Date, Region
-ORDER BY Date DESC
-```
+**Example**: `SELECT Company, Port, Date, [Total throughput] FROM Container_volume ORDER BY Date DESC`
 
 ---
 
@@ -1048,20 +765,7 @@ _content_hash   nvarchar   -- Data integrity hash
 
 **Data Coverage**: 495,281 records
 
-**Example Queries**:
-```sql
--- Get SSI quarterly metrics
-SELECT YEARREPORT, LENGTHREPORT, KEYCODE, KEYCODE_NAME, VALUE
-FROM BrokerageMetrics
-WHERE TICKER = 'SSI' AND ACTUAL = 1 AND YEARREPORT = 2024
-ORDER BY LENGTHREPORT DESC, KEYCODE
-
--- Compare brokerage profitability
-SELECT TICKER, VALUE as NPATMI
-FROM BrokerageMetrics
-WHERE KEYCODE = 'NPATMI' AND YEARREPORT = 2024 AND LENGTHREPORT = 3 AND ACTUAL = 1
-ORDER BY VALUE DESC
-```
+**Example**: `SELECT TICKER, KEYCODE, VALUE FROM BrokerageMetrics WHERE KEYCODE = 'NPATMI' AND YEARREPORT = 2024 AND ACTUAL = 1`
 
 ---
 
@@ -1083,20 +787,7 @@ Value       float      -- Position value
 
 **Data Coverage**: 322 records
 
-**Example Queries**:
-```sql
--- Get SSI proprietary book holdings
-SELECT Quarter, Holdings, Value
-FROM Brokerage_Propbook
-WHERE Ticker = 'SSI'
-ORDER BY Quarter DESC, Value DESC
-
--- Find which brokerages hold FPT
-SELECT Ticker as Brokerage, Quarter, Value
-FROM Brokerage_Propbook
-WHERE Holdings = 'FPT'
-ORDER BY Value DESC
-```
+**Example**: `SELECT Ticker, Quarter, Holdings, Value FROM Brokerage_Propbook ORDER BY Quarter DESC, Value DESC`
 
 ---
 
@@ -1130,21 +821,7 @@ created_at                  datetime   -- Record creation timestamp
 
 **Data Coverage**: 847 records
 
-**Example Queries**:
-```sql
--- Get recent bond issuances by sector
-SELECT industry_sector, issuer, issuance_value_billion_vnd, interest_rate, term_years, issue_date
-FROM Bonds_Issuance
-WHERE issue_date >= DATEADD(month, -3, GETDATE())
-ORDER BY issue_date DESC
-
--- Analyze banking sector bond issuance
-SELECT issuer, SUM(issuance_value_billion_vnd) as Total_Issuance, AVG(term_years) as Avg_Term
-FROM Bonds_Issuance
-WHERE industry_sector = 'Banking' AND report_year = 2025
-GROUP BY issuer
-ORDER BY Total_Issuance DESC
-```
+**Example**: `SELECT industry_sector, issuer, issuance_value_billion_vnd, interest_rate, issue_date FROM Bonds_Issuance ORDER BY issue_date DESC`
 
 ---
 
@@ -1170,20 +847,7 @@ pure_ldr                float      -- Pure Loan-to-Deposit Ratio
 
 **Data Coverage**: 251 records (monthly data)
 
-**Example Queries**:
-```sql
--- Get latest credit/deposit data
-SELECT date, credit_vnd_bn, credit_growth_ytd_pct, deposit_vnd_bn, pure_ldr
-FROM Vietnam_Credit_Deposit
-ORDER BY date DESC
-OFFSET 0 ROWS FETCH NEXT 12 ROWS ONLY
-
--- Track credit growth trends
-SELECT date, credit_growth_yoy_pct, deposit_growth_yoy_pct, pure_ldr
-FROM Vietnam_Credit_Deposit
-WHERE date >= '2024-01-01'
-ORDER BY date
-```
+**Example**: `SELECT date, credit_vnd_bn, credit_growth_yoy_pct, deposit_vnd_bn, pure_ldr FROM Vietnam_Credit_Deposit ORDER BY date DESC`
 
 #### `ceic_macro_data`
 **Purpose**: CEIC economic indicator time series for Vietnam and global benchmarks (GDP, FX, interest rates, government fiscal data)
@@ -1211,30 +875,7 @@ last_update_time   varchar    -- When CEIC last updated this data point
 - FX: `name LIKE '%FX%'` or `name LIKE '%Exchange Rate%'`
 - Forecasts: `name LIKE 'Forecast:%'`
 
-**Example Queries**:
-```sql
--- Find GDP-related series
-SELECT DISTINCT id, name, unit
-FROM ceic_macro_data
-WHERE name LIKE '%GDP%'
-ORDER BY name
-
--- Get latest VNIBOR rates
-SELECT id, name, date, value, unit
-FROM ceic_macro_data
-WHERE name LIKE '%VNIBOR%'
-  AND date >= '2024-01-01'
-ORDER BY date DESC
-
--- YoY comparison with window function
-SELECT name, date, value,
-    LAG(value, 1) OVER (PARTITION BY id ORDER BY date) AS prev_value,
-    (value - LAG(value, 1) OVER (PARTITION BY id ORDER BY date))
-        / NULLIF(LAG(value, 1) OVER (PARTITION BY id ORDER BY date), 0) * 100 AS change_pct
-FROM ceic_macro_data
-WHERE id = '260850901'
-ORDER BY date DESC
-```
+**Example**: `SELECT DISTINCT id, name, unit FROM ceic_macro_data WHERE name LIKE '%GDP%'`
 
 ---
 
@@ -1258,27 +899,7 @@ UpdatedOn     datetime2  -- Last update timestamp
 
 **Data Coverage**: 2,593 records
 
-**Example Queries**:
-```sql
--- Get current portfolio holdings
-SELECT Port, AssetId, NAVWeight, Date
-FROM Model_Portfolio
-WHERE Date = (SELECT MAX(Date) FROM Model_Portfolio)
-ORDER BY Port, NAVWeight DESC
-
--- Get top holdings for BIG PORT
-SELECT AssetId, NAVWeight
-FROM Model_Portfolio
-WHERE Port = 'BIG PORT INCEPTION'
-  AND Date = (SELECT MAX(Date) FROM Model_Portfolio WHERE Port = 'BIG PORT INCEPTION')
-ORDER BY NAVWeight DESC
-
--- Track weight changes for a stock
-SELECT Date, Port, NAVWeight
-FROM Model_Portfolio
-WHERE AssetId = 'VPB'
-ORDER BY Date DESC
-```
+**Example**: `SELECT Port, AssetId, NAVWeight FROM Model_Portfolio WHERE Date = (SELECT MAX(Date) FROM Model_Portfolio) ORDER BY NAVWeight DESC`
 
 ---
 
@@ -1307,27 +928,7 @@ ISDELETED     bit        -- Soft delete flag
 
 **Data Coverage**: 8,483 records
 
-**Example Queries**:
-```sql
--- Get recent company updates
-SELECT TICKER, TITLE, CATEGORY, IMPACT, CREATEDATE
-FROM IRIS_Company_Comments
-WHERE ISDELETED = 0
-ORDER BY CREATEDATE DESC
-OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY
-
--- Get all comments for a specific ticker
-SELECT TITLE, DESCRIPTION, CATEGORY, IMPACT, CREATEDATE
-FROM IRIS_Company_Comments
-WHERE TICKER = 'VNM' AND ISDELETED = 0
-ORDER BY CREATEDATE DESC
-
--- Find positive news/updates
-SELECT TICKER, TITLE, CREATEDATE
-FROM IRIS_Company_Comments
-WHERE IMPACT = 'Positive' AND ISDELETED = 0
-ORDER BY CREATEDATE DESC
-```
+**Example**: `SELECT TICKER, TITLE, CATEGORY, IMPACT, CREATEDATE FROM IRIS_Company_Comments WHERE ISDELETED = 0 ORDER BY CREATEDATE DESC`
 
 ---
 
@@ -2019,4 +1620,4 @@ mongo_aggregate("AgentSkillSets", [
 
 ---
 
-**For AI Agents**: This documentation provides table schemas and simple examples. For complex query patterns (multi-table JOINs, window functions, aggregations, rankings), see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
+**For AI Agents**: This documentation provides table schemas and simple examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
