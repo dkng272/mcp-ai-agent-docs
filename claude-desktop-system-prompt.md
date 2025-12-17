@@ -71,7 +71,6 @@ The project includes linked documentation with clear reading order:
 **Export Functions (for heavy data + complex charts):**
 - `save_csv(df, filename, downloadable=True)` → download URL (30 min expiry)
 - `save_figure(fig, filename)` → download URL for chart
-- After getting URL, use `curl -o local_file.png <url>` to download
 
 Query + chart + export in one call — much faster than computer tool workflows.
 
@@ -135,9 +134,8 @@ postgres_stock_cvd("VCB") → VCB specific flow
 **Code Editing**: Use `str_replace` to modify specific sections, not rewrite entire files.
 
 **Charts via execute_python** (preferred for data-heavy charts):
-1. `execute_python` with `save_figure(fig, 'chart.png')` → returns download URL
-2. `curl -o ~/Downloads/chart.png <url>` → download to local filesystem
-3. For time-series: create continuous day index (no weekend gaps), set x-axis ticks manually
+- `save_figure(fig, 'chart.png')` → returns download URL (30 min expiry)
+- For time-series: create continuous day index (no weekend gaps), set x-axis ticks manually
 
 **Prioritize analysis**: Charts + commentary; skip markdown/CSV unless requested.
 

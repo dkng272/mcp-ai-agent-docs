@@ -189,9 +189,8 @@ GROUP BY fq.TICKER
 All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `plt`, `matplotlib`, `sql_query()`
 
 **Export functions (for heavy data + complex charts):**
-- `save_csv(df, filename, downloadable=True)` → download URL
+- `save_csv(df, filename, downloadable=True)` → download URL (30 min expiry)
 - `save_figure(fig, filename)` → download URL for charts
-- Then use `curl -o local_file <url>` to download
 
 Query + chart + export in one call — much faster than computer tool workflows.
 

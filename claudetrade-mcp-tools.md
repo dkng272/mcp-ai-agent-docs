@@ -215,11 +215,6 @@ maxOutputSize: 100000
 
 **Why use these exports?** For complex visualizations on large datasets, query + chart + export in one `execute_python` call is much faster than multi-step computer tool workflows.
 
-**Workflow:** After getting the download URL, use `curl` to fetch the file:
-```bash
-curl -o ~/Downloads/chart.png "<download_url>"
-```
-
 **Pre-imported:**
 - `pd` (pandas), `np` (numpy), `scipy`, `sklearn`
 - `plt` (matplotlib.pyplot), `matplotlib`
