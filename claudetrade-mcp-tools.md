@@ -202,17 +202,91 @@ maxOutputSize: 100000
 - `mongo_distinct(collection, field, filter)` - Distinct values
 
 **CSV Export:**
-- `save_csv(data, path, include_header=True)` - Save DataFrame to CSV on server
+- `save_csv(data, path, downloadable=False)` - Save DataFrame to CSV
+  - `downloadable=False`: Saves to server filesystem at `path`
+  - `downloadable=True`: Returns a temporary download URL (30 min expiry)
+
+**Chart Export (Matplotlib):**
+- `save_figure(fig, filename, dpi=300)` - Save matplotlib figure to PNG with download URL
+  - Always returns a download URL (30 min expiry)
+  - `fig`: matplotlib figure object (or None for current figure)
+  - `filename`: output filename (auto-appends .png if missing)
+  - `dpi`: resolution (default 300)
+- `clear_figures()` - Close all figures to free memory (call after saving)
 
 **Pre-imported:**
-- `pd` (pandas), `np` (numpy), `scipy`, `sklearn`, `plt` (matplotlib)
+- `pd` (pandas), `np` (numpy), `scipy`, `sklearn`
+- `plt` (matplotlib.pyplot), `matplotlib`
 
-**Charts:**
-- Use `plt.savefig('filename.png')` to generate charts
-- Server returns a temp download URL in the result
-- Fetch the URL to display the chart
+**Export Limits:**
+- CSV: Max 50MB per file, max 10 files per execution
+- Images: Max 10MB per file, max 10 images per execution
+- Download URLs expire after 30 minutes
 
-### Example: Combined Analysis
+### Example: CSV with Download URL
+
+```python
+code: """
+df = sql_query("SELECT * FROM Market_Data WHERE TICKER = 'VNM'")
+
+# Get download URL instead of saving to server path
+csv_info = save_csv(df, "vnm_data.csv", downloadable=True)
+
+result = {"rows": len(df), "download": csv_info}
+"""
+```
+
+**Response includes:**
+```json
+{
+  "csv_files_saved": [{
+    "path": "vnm_data.csv",
+    "rows": 100,
+    "size_bytes": 5432,
+    "download_url": "https://claudetrade.live/mcp-sse/download/abc123...",
+    "expires_in": "30 minutes"
+  }]
+}
+```
+
+### Example: Matplotlib Chart with Download URL
+
+```python
+code: """
+df = sql_query('''
+    SELECT TRADE_DATE, PX_LAST FROM Market_Data
+    WHERE TICKER = 'VNM' ORDER BY TRADE_DATE DESC
+''')
+df['TRADE_DATE'] = pd.to_datetime(df['TRADE_DATE'])
+
+# Create chart
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.plot(df['TRADE_DATE'], df['PX_LAST'], 'b-', linewidth=1.5)
+ax.set_title('VNM Price History')
+ax.set_xlabel('Date')
+ax.set_ylabel('Price (VND)')
+
+# Save and get download URL
+img_info = save_figure(fig, "vnm_price_chart.png")
+clear_figures()  # Free memory
+
+result = {"chart": img_info}
+"""
+```
+
+**Response includes:**
+```json
+{
+  "images_saved": [{
+    "filename": "vnm_price_chart.png",
+    "size_bytes": 45678,
+    "download_url": "https://claudetrade.live/mcp-sse/download/def456...",
+    "expires_in": "30 minutes"
+  }]
+}
+```
+
+### Example: Combined Analysis with Exports
 
 ```python
 code: """
@@ -222,6 +296,7 @@ prices = sql_query('''
     FROM Market_Data
     WHERE TICKER = 'VHM' AND TRADE_DATE >= '2025-01-01'
 ''')
+prices['TRADE_DATE'] = pd.to_datetime(prices['TRADE_DATE'])
 
 # Get NPV data from MongoDB
 npv_data = mongo_find("RealEstateProjects",
@@ -233,8 +308,15 @@ npv_data = mongo_find("RealEstateProjects",
 total_npv = npv_data['npv_to_company'].sum()
 latest_price = prices['PX_LAST'].iloc[-1]
 
-# Export to CSV
-save_csv(prices, '~/exports/vhm_prices.csv')
+# Export CSV with download URL
+save_csv(prices, 'vhm_prices.csv', downloadable=True)
+
+# Create and export chart
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(prices['TRADE_DATE'], prices['PX_LAST'])
+ax.set_title(f'VHM Price (Latest: {latest_price:,.0f})')
+save_figure(fig, 'vhm_chart.png')
+clear_figures()
 
 result = {
     "ticker": "VHM",
@@ -318,10 +400,12 @@ download_path: "~/Downloads/report.pdf"  # optional
 |----------|------|----------|
 | Discovery | `find_relevant_tables` | Find which table has the data you need |
 | SQL | `mssql_read_data` | Query market data, financials |
-| SQL | `mssql_export_data` | Export large datasets to CSV |
+| SQL | `mssql_export_data` | Export large datasets to CSV (server path) |
 | MongoDB | `mongo_find` | Query company models, RE projects |
 | MongoDB | `mongo_aggregate` | Complex aggregations |
 | Python | `execute_python` | Combined SQL+MongoDB analysis |
+| Python | `save_csv(..., downloadable=True)` | Export CSV with download URL |
+| Python | `save_figure(fig, filename)` | Export chart with download URL |
 | CVD | `postgres_sector_cvd` | Sector money flow |
 | CVD | `postgres_stock_cvd` | Stock-level money flow |
 | Consensus | `supabase_consensus_analyze` | Broker sentiment analysis |
@@ -337,4 +421,4 @@ download_path: "~/Downloads/report.pdf"  # optional
 
 ---
 
-*Last updated: December 2025*
+*Last updated: December 17, 2025*

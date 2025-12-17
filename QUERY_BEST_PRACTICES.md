@@ -186,7 +186,12 @@ GROUP BY fq.TICKER
 
 ### 1. NO Import Statements
 
-All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `plt` (matplotlib), `sql_query()`
+All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `plt`, `matplotlib`, `sql_query()`
+
+Export functions available:
+- `save_csv(df, filename, downloadable=True)` → download URL
+- `save_figure(fig, filename)` → download URL for charts
+- `clear_figures()` → free memory after saving charts
 
 ```python
 # ✅ CORRECT
@@ -332,7 +337,8 @@ Check date format (`'2024-01-01'` not `'01/01/2024'`) and filter conditions.
 - [ ] Assigned to `result` variable
 - [ ] Result is JSON-serializable
 - [ ] Aggregated data (not raw DataFrames)
-- [ ] Charts: use `plt.savefig()` → returns temp download URL
+- [ ] Charts: use `save_figure(fig, filename)` + `clear_figures()`
+- [ ] CSV exports: use `save_csv(df, filename, downloadable=True)`
 
 ---
 
