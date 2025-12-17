@@ -1,6 +1,6 @@
-# Database Schema Documentation - SQL Server Only
+# Database Schema Documentation
 
-**Last Updated**: 2025-12-17 (Added Forecast_history, Model_Portfolio)
+**Last Updated**: 2025-12-17 (Added MongoDB collections)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -12,17 +12,22 @@
 ## Table of Contents
 1. [Overview](#overview)
 2. [Azure SQL - dclab](#azure-sql---dclab)
-3. [Common Query Patterns](#common-query-patterns)
+3. [MongoDB - IRIS](#mongodb---iris)
+4. [Common Query Patterns](#common-query-patterns)
 
 ---
 
 ## Overview
 
 ### Access Methods
-- **Azure SQL**: MCP Server
+- **Azure SQL**: MCP Server (`mcp__MicrosoftSQL__*` tools)
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
   - Tables: 44 (financial data, sector operations, commodities, market intelligence, banking rates, bonds, analyst comments, portfolios)
+
+- **MongoDB**: MCP Server (`mcp__claudetrade-mcp__mongo_*` tools)
+  - Database: `IRIS`
+  - Collections: 6 (analyst models, real estate projects, interbank updates, lending rates, MoC data, AI knowledge base)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -1481,6 +1486,485 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Power market/generation | `Power_Metrics` |
 | Reservoir levels | `Power_Reservoir_Metrics` |
 | Port container volume | `Container_volume` |
+
+---
+
+## MongoDB - IRIS
+
+MongoDB database `IRIS` contains 6 collections for analyst models, real estate valuations, and market intelligence.
+
+**MCP Tools**: Use `mcp__claudetrade-mcp__mongo_find` and `mcp__claudetrade-mcp__mongo_aggregate` for queries.
+
+---
+
+### `CompanyModels`
+**Purpose**: Analyst financial models with income statement, balance sheet, segment data, and forecasts
+
+**Document Count**: 3
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  ticker: string,              // Stock ticker (e.g., "MWG", "BCM")
+  company_name: string,        // Full company name
+  sector: string,              // Sector classification
+  sub_sector: string,          // Sub-sector
+  source_file: string,         // Excel source file name
+  source_sheet: string,        // Source sheet name (e.g., "FOR_AI")
+  model_version: string,       // Model quarter (e.g., "Q2 2025")
+  analyst: string,             // Analyst name
+  upload_date: Date,           // Upload timestamp
+  created_at: Date,
+  updated_at: Date,
+
+  // Financial Data (nested by segment for retail models like MWG)
+  data: {
+    [SegmentName]: {           // e.g., "BachHoaXanh", "DienMayXanh"
+      [MetricName]: {          // e.g., "Revenue", "Gross Profit", "EBITDA"
+        unit: string,          // "VNDbn", "Count", "%"
+        actual: {
+          annual: { "2020": number, "2021": number, ... },
+          quarterly: { "1Q20": number, "2Q20": number, ... }
+        },
+        forecast: {
+          annual: { "2025": number, "2026": number, ... },
+          quarterly: { "4Q25": number, "1Q26": number, ... }
+        }
+      }
+    }
+  },
+
+  // Or traditional IS/BS format (BCM style)
+  income_statement: {
+    [year]: {
+      revenue: number,
+      gross_profit: number,
+      ebitda: number,
+      net_income: number,
+      net_income_to_shareholders: number,
+      // ... more line items
+    }
+  },
+  balance_sheet: {
+    [year]: {
+      cash_and_equivalents: number,
+      total_assets: number,
+      total_equity: number,
+      st_debt: number,
+      lt_debt: number,
+      // ... more line items
+    }
+  },
+
+  // Valuation & Analysis
+  valuation: {
+    methodology: string,       // "SOTP", "DCF", etc.
+    sotp: { components: {...}, total_nav_mil_vnd: number, nav_per_share_vnd: number }
+  },
+  coverage: {
+    status: string,            // "Active", "Not Rated"
+    recommendation: string,    // "BUY", "OUTPERFORM", etc.
+    target_price: number,
+    current_price: number,
+    upside_percent: number
+  },
+  investment_thesis: {
+    catalysts: [string],
+    risks: [string],
+    key_assumptions: [string]
+  },
+  industry_metrics: {...}      // Sector-specific metrics
+}
+```
+
+**Example Queries**:
+```javascript
+// Get MWG model
+mongo_find("CompanyModels", { ticker: "MWG" })
+
+// Get all models with forecasts
+mongo_find("CompanyModels", {}, { ticker: 1, model_version: 1, "coverage.target_price": 1 })
+```
+
+---
+
+### `RealEstateProjects`
+**Purpose**: Individual real estate project DCF valuations with NPV, IRR, and yearly cash flows
+
+**Document Count**: 146
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  project_name: string,        // Project name (e.g., "Taseco Trung Van")
+  ticker: string,              // Developer ticker (e.g., "TAL", "VHM", "NLG")
+  location: string,            // Location (e.g., "Nam Tu Liem, Hanoi")
+  project_type: string,        // "Apartment", "Township", "Mixed-use", "Industrial"
+  status: string,              // "Planning", "Under Development", "Completed"
+
+  // Ownership & Scale
+  ownership_pct: number,       // Developer ownership (0-100)
+  land_area_ha: number,        // Land area in hectares
+  gfa_sqm: number,             // Gross Floor Area in sqm
+  sellable_area_sqm: number,   // Net Sellable Area in sqm
+  total_units: number,         // Number of units
+
+  // Pricing & Costs (per sqm)
+  asp_per_sqm: number,         // Average Selling Price per sqm
+  land_cost_per_sqm: number,   // Land cost per sqm
+  construction_cost_per_sqm: number,
+
+  // Timeline
+  launch_year: number,
+  completion_year: number,
+
+  // Financials (VND billion)
+  total_revenue: number,
+  total_cost: number,
+  gross_margin_pct: number,
+
+  // Valuation
+  project_npv: number,         // Project NPV (VND billion)
+  npv_to_company: number,      // NPV × ownership_pct
+  irr: number,                 // Internal Rate of Return (%)
+
+  // Yearly Cash Flows
+  yearly_data: [
+    {
+      year: number,
+      pct_sold: number,        // % of units sold this year
+      units_sold: number,
+      sales_amount: number,    // Sales value
+      cash_in: number,         // Cash collections
+      land_cost: number,
+      construction_cost: number,
+      sga_cost: number,
+      tax: number,
+      net_cash_flow: number,
+      revenue: number,         // Revenue recognition
+      cogs: number,
+      gross_profit: number,
+      net_profit: number,
+      wacc: number,            // Discount rate (typically 10-12%)
+      discount_factor: number,
+      npv_contribution: number
+    }
+  ],
+
+  model_version: string,
+  last_updated: Date,
+  updated_by: string
+}
+```
+
+**Example Queries**:
+```javascript
+// Get all VHM projects sorted by NPV
+mongo_find("RealEstateProjects", { ticker: "VHM" }, { project_name: 1, npv_to_company: 1, irr: 1 }, { npv_to_company: -1 })
+
+// Get high-IRR projects (>30%)
+mongo_find("RealEstateProjects", { irr: { $gt: 30 } }, { ticker: 1, project_name: 1, irr: 1, npv_to_company: 1 })
+
+// Aggregate NAV by developer
+mongo_aggregate("RealEstateProjects", [
+  { $group: { _id: "$ticker", total_nav: { $sum: "$npv_to_company" }, project_count: { $sum: 1 } } },
+  { $sort: { total_nav: -1 } }
+])
+```
+
+---
+
+### `InterbankUpdates`
+**Purpose**: Daily interbank/FX market updates with exchange rates and open market operations
+
+**Document Count**: 40
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  date: Date,                  // Update date
+  created_at: Date,
+
+  exchange_rate: {
+    usd_vnd_interbank: number, // Interbank USD/VND rate
+    usd_vnd_opening: number,   // Opening rate
+    central_rate: number,      // SBV central rate
+    ceiling_rate: number,      // Ceiling rate
+    forecast_range: {
+      low: number,
+      high: number
+    },
+    trend: string,             // "increase", "decrease", "stable"
+    commentary: string         // Market commentary
+  },
+
+  open_market: {
+    omo: {                     // Open Market Operations
+      injection: number,       // Daily OMO injection (billion VND)
+      terms: [number],         // Available terms (7, 14, 28, 91 days)
+      interest_rate: number,   // OMO interest rate (%)
+      outstanding_balance: number,
+      maturity_today: number,
+      maturity_this_month: number
+    },
+    state_treasury: {
+      outstanding_balance: number,
+      maturity_today: number,
+      maturity_this_month: number
+    }
+  }
+}
+```
+
+**Example Queries**:
+```javascript
+// Get latest interbank update
+mongo_find("InterbankUpdates", {}, {}, { date: -1 }, 1)
+
+// Get exchange rate trends
+mongo_find("InterbankUpdates", {}, { date: 1, "exchange_rate.usd_vnd_interbank": 1, "exchange_rate.trend": 1 }, { date: -1 }, 10)
+```
+
+---
+
+### `LendingRates`
+**Purpose**: Bank mortgage/lending rate offers for real estate projects
+
+**Document Count**: 14
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  bank: string,                // Bank name (e.g., "MB Bank", "Vietcombank")
+  ticker: string,              // Bank ticker (e.g., "MBB", "VCB")
+  branch: string,              // Branch name (optional)
+  language: string,            // "English", "Vietnamese"
+  document_type: string,       // "Offer Letter - Project specific", etc.
+  effective_date: Date,
+  extracted_date: string,
+
+  // Project-specific (optional)
+  project: {
+    name: string,
+    location: string,
+    full_name: string
+  },
+
+  // Loan Terms
+  loan_terms: {
+    ltv_ratio: number,         // Loan-to-Value ratio (0.75 = 75%)
+    ltv_note: string,
+    max_loan_term_months: number,
+    max_loan_term_years: number,
+    grace_period_months: number,
+    repayment_method: string
+  },
+
+  // Interest Rates (%)
+  interest_rates: {
+    fixed_6_months: number,    // OR by product type:
+    fixed_12_months: number,   // fixed_12_months: { land_purchase: 8.3, house_project: 7.8, ... }
+    fixed_18_months: number,
+    fixed_24_months: number,
+    post_fixed_year_1: string, // e.g., "Reference Rate + 1.5%"
+    post_fixed_remaining: string,
+    reference_rate_adjustment: string
+  },
+
+  // OR detailed by product type (VCB style)
+  fixed_rates: {
+    "6_months": { land_purchase: number, house_project: number, consumer_car: number },
+    "12_months": { ... },
+    "18_months_first_6": { ... },
+    "18_months_last_12": { ... }
+  },
+
+  prepayment_fees: {
+    year_1_to_3: { other_sources: number, refinance_from_other_bank: number },
+    // OR by package: "12_month_package": { year_1_2_3: 0.02, ... }
+  },
+
+  max_loan_terms: {
+    house_land_with_certificate: string,
+    house_project_no_certificate: string
+  },
+
+  disbursement_schedule: [
+    { phase: number, description: string, customer_equity_pct: number, loan_disbursement_pct: number }
+  ],
+
+  customer_requirements: [string],
+  customer_benefits: [string]
+}
+```
+
+**Example Queries**:
+```javascript
+// Get all lending rates
+mongo_find("LendingRates", {}, { bank: 1, "interest_rates.fixed_12_months": 1, effective_date: 1 })
+
+// Get rates for a specific bank
+mongo_find("LendingRates", { ticker: "VCB" })
+```
+
+---
+
+### `MoCData`
+**Purpose**: Ministry of Construction (MoC) quarterly real estate statistics
+
+**Document Count**: 25
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  quarter: string,             // "3Q19", "4Q24"
+  year: number,                // 2019, 2024
+  quarter_num: number,         // 1, 2, 3, 4
+  source: string,              // "Ministry of Construction (MoC)"
+
+  data: {
+    transactions: {
+      apartments_landed_houses: number,  // Transaction count
+      total: number
+    },
+    credit: {
+      total: number            // Outstanding real estate credit (billion VND)
+    }
+  },
+
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+**Example Queries**:
+```javascript
+// Get all MoC data sorted by quarter
+mongo_find("MoCData", {}, {}, { year: -1, quarter_num: -1 })
+
+// Get 2024 transaction data
+mongo_find("MoCData", { year: 2024 }, { quarter: 1, "data.transactions": 1, "data.credit": 1 })
+
+// Aggregate annual transactions
+mongo_aggregate("MoCData", [
+  { $group: { _id: "$year", total_transactions: { $sum: "$data.transactions.total" } } },
+  { $sort: { _id: -1 } }
+])
+```
+
+---
+
+### `AgentSkillSets`
+**Purpose**: AI agent knowledge base with sector analysis frameworks and ticker-specific knowledge
+
+**Document Count**: 15
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  skill_set_id: string,        // "sector:real_estate", "ticker:VHM"
+  type: string,                // "sector" or "ticker"
+  name: string,                // "Real Estate Sector Knowledge", "VHM Company Knowledge"
+
+  // Sector-level fields
+  sector_name: string,         // "real_estate"
+
+  // Ticker-level fields
+  ticker: string,              // "VHM"
+  company_name: string,
+  sector: string,
+  sub_sector: string,
+  business_overview: string,
+  key_drivers: [string],
+  metrics_to_watch: [string],
+
+  // Knowledge Content
+  key_metrics: [
+    { metric: string, description: string, unit: string }
+  ],
+  valuation_methods: [
+    { method: string, description: string, primary: boolean }
+  ],
+  data_units: {
+    revenue: string,           // "VND billion"
+    npv: string,
+    percentages: string        // "Number format (75 means 75%)"
+  },
+
+  project_types: [string],     // ["Apartment", "Township", "Industrial"]
+  project_statuses: [string],
+
+  // Best Practices & Issues
+  best_practices: [
+    { practice: string, category: string }
+  ],
+  common_issues: [
+    { issue: string, solution: string }
+  ],
+
+  // Analyst Notes & Knowledge Entries
+  analyst_notes: [
+    { note: string, context: string, added_at: Date, added_by: string }
+  ],
+  knowledge_entries: [
+    { category: string, content: string, source: string, added_at: Date, added_by: string }
+  ],
+
+  // Ticker-specific
+  historical_patterns: [
+    { pattern: string, context: string, date: string }
+  ],
+  model_assumptions: [
+    { assumption: string, context: string, date: string }
+  ],
+  excel_specific: {
+    model_file: string,
+    valuation_tab: string,
+    layout_detection: string
+  },
+
+  // Metadata
+  created_at: Date,
+  last_updated: Date,
+  created_by: string,
+  version: number
+}
+```
+
+**Example Queries**:
+```javascript
+// Get sector knowledge
+mongo_find("AgentSkillSets", { type: "sector" }, { skill_set_id: 1, name: 1, key_metrics: 1 })
+
+// Get VHM ticker knowledge
+mongo_find("AgentSkillSets", { skill_set_id: "ticker:VHM" })
+
+// Get all best practices
+mongo_aggregate("AgentSkillSets", [
+  { $unwind: "$best_practices" },
+  { $project: { skill_set_id: 1, practice: "$best_practices.practice", category: "$best_practices.category" } }
+])
+```
+
+---
+
+## MongoDB Quick Reference
+
+| Question | Collection | Query |
+|----------|------------|-------|
+| "Get analyst model for MWG" | `CompanyModels` | `{ ticker: "MWG" }` |
+| "List all real estate projects by NAV" | `RealEstateProjects` | Sort by `npv_to_company` desc |
+| "Get VHM projects with IRR > 30%" | `RealEstateProjects` | `{ ticker: "VHM", irr: { $gt: 30 } }` |
+| "Latest interbank exchange rate" | `InterbankUpdates` | Sort by `date` desc, limit 1 |
+| "Bank mortgage rates" | `LendingRates` | `{}` (all) or `{ ticker: "VCB" }` |
+| "Real estate transaction volume" | `MoCData` | `{}` sorted by year/quarter |
+| "AI sector knowledge for real estate" | `AgentSkillSets` | `{ skill_set_id: "sector:real_estate" }` |
 
 ---
 
