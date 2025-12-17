@@ -212,7 +212,8 @@ maxOutputSize: 100000
   - `fig`: matplotlib figure object (or None for current figure)
   - `filename`: output filename (auto-appends .png if missing)
   - `dpi`: resolution (default 300)
-- `clear_figures()` - Close all figures to free memory (call after saving)
+
+**Why use these exports?** For complex visualizations on large datasets, query + chart + export in one `execute_python` call is much faster than multi-step computer tool workflows.
 
 **Pre-imported:**
 - `pd` (pandas), `np` (numpy), `scipy`, `sklearn`
@@ -268,7 +269,6 @@ ax.set_ylabel('Price (VND)')
 
 # Save and get download URL
 img_info = save_figure(fig, "vnm_price_chart.png")
-clear_figures()  # Free memory
 
 result = {"chart": img_info}
 """
@@ -316,7 +316,6 @@ fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(prices['TRADE_DATE'], prices['PX_LAST'])
 ax.set_title(f'VHM Price (Latest: {latest_price:,.0f})')
 save_figure(fig, 'vhm_chart.png')
-clear_figures()
 
 result = {
     "ticker": "VHM",

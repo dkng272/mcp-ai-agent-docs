@@ -188,10 +188,11 @@ GROUP BY fq.TICKER
 
 All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `plt`, `matplotlib`, `sql_query()`
 
-Export functions available:
+**Export functions (for heavy data + complex charts):**
 - `save_csv(df, filename, downloadable=True)` → download URL
 - `save_figure(fig, filename)` → download URL for charts
-- `clear_figures()` → free memory after saving charts
+
+Use these for complex visualizations on large datasets — query + chart + export in one call.
 
 ```python
 # ✅ CORRECT
@@ -337,8 +338,8 @@ Check date format (`'2024-01-01'` not `'01/01/2024'`) and filter conditions.
 - [ ] Assigned to `result` variable
 - [ ] Result is JSON-serializable
 - [ ] Aggregated data (not raw DataFrames)
-- [ ] Charts: use `save_figure(fig, filename)` + `clear_figures()`
-- [ ] CSV exports: use `save_csv(df, filename, downloadable=True)`
+- [ ] Complex charts: use `save_figure(fig, filename)` for download URL
+- [ ] Large CSV exports: use `save_csv(df, filename, downloadable=True)`
 
 ---
 

@@ -68,10 +68,11 @@ The project includes linked documentation with clear reading order:
 - Aggregate before returning — don't send raw DataFrames
 - Available: `pd`, `np`, `scipy`, `sklearn`, `plt`, `matplotlib`
 
-**Export Functions:**
-- `save_csv(df, filename, downloadable=True)` → returns download URL (30 min expiry)
-- `save_figure(fig, filename)` → returns download URL for chart
-- `clear_figures()` → call after saving to free memory
+**Export Functions (for heavy data + complex charts):**
+- `save_csv(df, filename, downloadable=True)` → download URL (30 min expiry)
+- `save_figure(fig, filename)` → download URL for chart
+
+Use these for complex visualizations on large datasets — much faster than computer tool workflows.
 
 ### CVD (Money Flow)
 | Tool | Use Case |
@@ -132,9 +133,9 @@ postgres_stock_cvd("VCB") → VCB specific flow
 
 **Code Editing**: Use `str_replace` to modify specific sections, not rewrite entire files.
 
-**Charts via execute_python**:
+**Charts via execute_python** (preferred for data-heavy charts):
 - Use `save_figure(fig, 'chart.png')` → returns download URL (30 min expiry)
-- Call `clear_figures()` after saving to free memory
+- Query data + create chart + export in one call — no file transfers needed
 - For time-series: create continuous day index (no weekend gaps), set x-axis ticks manually
 
 **Prioritize analysis**: Charts + commentary; skip markdown/CSV unless requested.
