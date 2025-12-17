@@ -1,11 +1,11 @@
 # Database Schema Documentation
 
 **Last Updated**: 2025-12-17 (Added MongoDB collections)
-**AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
+**AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
 
 ---
 
-> **📘 For Complex Queries**: This document covers table schemas and simple examples. For advanced query patterns (multi-table JOINs, window functions, nested derived tables, complex aggregations), see **[MCP_SQL_QUERY_BEST_PRACTICES.md](./MCP_SQL_QUERY_BEST_PRACTICES.md)**.
+> **📘 For Complex Queries**: This document covers table schemas and simple examples. For advanced query patterns (multi-table JOINs, window functions, nested derived tables, complex aggregations), see **[QUERY_BEST_PRACTICES.md](./QUERY_BEST_PRACTICES.md)**.
 
 ---
 
@@ -1183,6 +1183,57 @@ SELECT date, credit_growth_yoy_pct, deposit_growth_yoy_pct, pure_ldr
 FROM Vietnam_Credit_Deposit
 WHERE date >= '2024-01-01'
 ORDER BY date
+```
+
+#### `ceic_macro_data`
+**Purpose**: CEIC economic indicator time series for Vietnam and global benchmarks (GDP, FX, interest rates, government fiscal data)
+
+**Schema**:
+```sql
+id                 varchar    -- Unique series identifier (e.g., "260850901")
+name               varchar    -- Descriptive series name (e.g., "Forecast: GDP: Current Prices: USD: Vietnam")
+value              float      -- Numeric value
+date               datetime   -- Observation date
+unit               varchar    -- Measurement unit ("USD bn", "% pa", "VND bn")
+last_update_time   varchar    -- When CEIC last updated this data point
+```
+
+**Data Coverage**: 545 unique series, 151K+ records (2004-2030, includes forecasts)
+
+**Top Series by Data Points**:
+- U.S. Dollar Index (id: 248650402) - 5,481 daily
+- FX Spot Rate VND/USD (id: 44149401) - 5,309 daily
+- VNIBOR rates (ids: 134040801, 134040901) - 5,206+ daily
+
+**Common Name Patterns**:
+- GDP: `name LIKE '%GDP%'`
+- Interest rates: `name LIKE '%VNIBOR%'` or `name LIKE '%Interest%'`
+- FX: `name LIKE '%FX%'` or `name LIKE '%Exchange Rate%'`
+- Forecasts: `name LIKE 'Forecast:%'`
+
+**Example Queries**:
+```sql
+-- Find GDP-related series
+SELECT DISTINCT id, name, unit
+FROM ceic_macro_data
+WHERE name LIKE '%GDP%'
+ORDER BY name
+
+-- Get latest VNIBOR rates
+SELECT id, name, date, value, unit
+FROM ceic_macro_data
+WHERE name LIKE '%VNIBOR%'
+  AND date >= '2024-01-01'
+ORDER BY date DESC
+
+-- YoY comparison with window function
+SELECT name, date, value,
+    LAG(value, 1) OVER (PARTITION BY id ORDER BY date) AS prev_value,
+    (value - LAG(value, 1) OVER (PARTITION BY id ORDER BY date))
+        / NULLIF(LAG(value, 1) OVER (PARTITION BY id ORDER BY date), 0) * 100 AS change_pct
+FROM ceic_macro_data
+WHERE id = '260850901'
+ORDER BY date DESC
 ```
 
 ---

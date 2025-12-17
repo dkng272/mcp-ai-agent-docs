@@ -8,17 +8,19 @@ This repository provides comprehensive schema documentation and query best pract
 
 ## 📚 Documentation Files
 
-### [DATABASE_SCHEMA_SQL_ONLY.md](DATABASE_SCHEMA_SQL_ONLY.md)
-Complete database schema reference covering Vietnamese financial market data across multiple sectors including banking, insurance, brokerage, commodities, and macroeconomic indicators.
+### Reading Order for AI Agents
+1. **claudetrade-mcp-tools.md** - Start here (tool reference)
+2. **DATABASE_SCHEMA.md** - When you need schema details
+3. **QUERY_BEST_PRACTICES.md** - When writing queries
 
-### [MCP_SQL_QUERY_BEST_PRACTICES.md](MCP_SQL_QUERY_BEST_PRACTICES.md)
-Battle-tested query patterns and optimization techniques specifically validated for Microsoft SQL MCP Server. Includes proven approaches for aggregations, window functions, joins, and time-series analysis.
+### [claudetrade-mcp-tools.md](claudetrade-mcp-tools.md)
+**Entry point** for AI agents. Quick reference for ClaudeTrade MCP server tools: table discovery, SQL, MongoDB, PostgreSQL CVD, Python executor, and broker consensus.
 
-### [VIETNAM_MACRO_DATA_SCHEMA_AND_BEST_PRACTICES.md](VIETNAM_MACRO_DATA_SCHEMA_AND_BEST_PRACTICES.md)
-Specialized guide for Vietnam macroeconomic data including CEIC indicators (GDP, FX rates, interest rates, government fiscal data) with optimized time-series query patterns.
+### [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
+Complete database schema reference covering Azure SQL (44 tables) and MongoDB (6 collections). Includes market data, financials, sector operations, commodities, macro indicators, company models, and real estate valuations.
 
-### [IRIS_MANUAL_DATA_GUIDE.md](IRIS_MANUAL_DATA_GUIDE.md)
-Documentation for manually collected operational and market data including commodity prices, sector-specific metrics, and company operational indicators.
+### [QUERY_BEST_PRACTICES.md](QUERY_BEST_PRACTICES.md)
+Battle-tested query patterns for SQL and Python executor. Covers what works/fails, tool selection, JOINs, window functions, aggregations, and context reduction techniques.
 
 ---
 
@@ -89,6 +91,9 @@ Please submit pull requests with tested examples and clear descriptions.
 
 ## 📝 Version History
 
+- **v2.0** (2025-12-17): Consolidated to 3 core docs (claudetrade-mcp-tools → DATABASE_SCHEMA → QUERY_BEST_PRACTICES)
+- **v1.5** (2025-12-17): Removed IRIS Manual Data guide (table shrunk); added claudetrade-mcp-tools.md
+- **v1.4** (2025-12-17): Added MongoDB collection schemas to DATABASE_SCHEMA.md
 - **v1.3** (2025-11-12): Added IRIS Manual Data documentation
 - **v1.2** (2025-11-12): Added Vietnam Macro Data specialized guide
 - **v1.1** (2025-11-11): Updated for float data types
@@ -111,5 +116,5 @@ Data: Proprietary - Not included in repository
 
 ---
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-12-17
 **Repository**: [github.com/dkng272/mcp-ai-agent-docs](https://github.com/dkng272/mcp-ai-agent-docs)
