@@ -1,6 +1,6 @@
 # IRIS Manual Data - Schema & Documentation
 
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-12-17
 **Table**: `dbo.iris_manual_data`
 **Purpose**: Manually collected high-frequency operational and market data
 
@@ -9,13 +9,13 @@
 ## Table Overview
 
 **Dual-purpose table** containing:
-1. **Commodity & Macro Data**: Prices, rates, trade statistics (13 categories)
-2. **Alternative Data**: Company-specific operational metrics (46 stock tickers)
+1. **Commodity & Macro Data**: Prices and spreads (3 categories)
+2. **Alternative Data**: Company-specific operational metrics (17 stock tickers)
 
 **Data Coverage**:
-- 158,021 records
-- 95 unique tickers/series
-- Date range: 2000-2025
+- 37,314 records
+- 25 unique tickers/series
+- Date range: 2002-2025
 - Frequency: Daily to Monthly
 
 ---
@@ -27,7 +27,7 @@
 | `Category` | varchar | Category grouping (NULL for stock tickers) |
 | `Ticker` | varchar | Series identifier (stock ticker or commodity name) |
 | `KeyCode` | varchar | Metric type (varies by category/ticker) |
-| `Frequency` | varchar | Update frequency (Daily, Weekly, Monthly) |
+| `Frequency` | varchar | Update frequency (Daily, Weekly, Monthly, Quarterly) |
 | `MeasureUnit` | varchar | Measurement unit (kg, ton, %, USD, etc.) |
 | `Date` | datetime | Observation date |
 | `Value` | float | Numeric value |
@@ -50,133 +50,52 @@ WHERE Category IS NULL
 
 **Filter**: `WHERE Category IS NOT NULL`
 
-### 1. Hog (11 tickers, 36,804 records)
-Vietnamese hog prices by region and type:
-- **By region**: North, Middle, South
-- **By seller type**: Corporate vs Farmer prices
-- **By category**: Standard hog, 20kg piglet, baby pig (6-7kg)
-- **Frequency**: Daily
-- **Unit**: VND/kg or VND/con (per pig)
+### 1. Hog (4 tickers, 9,406 records)
+Vietnamese piglet prices by region and type:
 
-**Tickers**:
-- Hog_corporate_South, Hog_corporate_North, Hog_corporate_Middle
-- Hog_farmer_South, Hog_farmer_North, Hog_farmer_Middle
-- Hog_corporate_20kg_South
-- Hog_corporate_baby_pig_6_7kg_North
+| Ticker | Description | Unit |
+|--------|-------------|------|
+| Hog_corporate_20kg_North | 20kg piglet corporate price (North) | VND/kg |
+| Hog_corporate_baby_pig_6_7kg_North | Baby pig 6-7kg corporate (North) | VND/con |
+| Hog_corporate_baby_pig_6_7kg_South | Baby pig 6-7kg corporate (South) | VND/con |
+| Hog_farmer_baby_pig_7_9kg_South | Baby pig 7-9kg farmer (South) | VND/con |
 
-### 2. Chemical (3 tickers, 16,612 records)
-Phosphorus prices from China:
-- **Thermal_phospho_China**: Thermal process phosphorus
-- **Yellow_phospho_China**: Yellow phosphorus
-- **Frequency**: Daily
-- **Purpose**: Input cost indicator for fertilizer producers
+**KeyCodes**: Average, High, Low
+**Frequency**: Daily
+**Purpose**: Track piglet prices for agricultural/livestock sector
 
-### 3. Interest Rate (3 tickers, 12,095 records)
-Vietnam banking system rates:
-- **Deposit_Rate**: 3M, 6M, 12M tenor deposit rates
-- **ON_Interbank_Rate**: Overnight interbank rate (Price & Volume)
-- **Frequency**: Monthly
-- **Purpose**: Track Vietnam interest rate environment
-
-### 4. Fertilizer (2 tickers, 8,931 records)
+### 2. Fertilizer (2 tickers, 8,983 records)
 Urea spread analysis:
-- **Global_Urea_Spread**: Global urea price spread
-- **Urea_Simulated_Spread**: Simulated spread model
-- **Frequency**: Daily
-- **Purpose**: Key input cost for agricultural sector
 
-### 5. BSR Crack (4 tickers, 6,917 records)
-Refinery crack spreads for petroleum products:
-- **Products**: Gasoline_92, Diesel, Fuel_oil, etc.
-- **Frequency**: Daily
-- **Purpose**: Margin indicator for oil refineries
+| Ticker | Description |
+|--------|-------------|
+| Global_Urea_Spread | Global urea price spread |
+| Urea_Simulated_Spread | Simulated spread model |
 
-### 6. Energy (1 ticker, 4,584 records)
-- **JETFUEL**: Jet fuel prices
-- **Frequency**: Daily
-- **Purpose**: Aviation cost indicator
-
-### 7. Vietnam Macro (3 tickers, 1,962 records)
-Banking system-wide aggregates:
-
-**Total_Credit** (226 records, 2005-2023):
-- Total_Credit: Total outstanding credit in banking system
-- Credit_Growth_YoY: Year-over-year growth rate
-- Credit_Growth_YTD: Year-to-date growth rate
-
-**Total_Deposit** (216 records, 2005-2022):
-- Total_Deposit: Total deposits in banking system
-- Deposit_Growth_YoY: Year-over-year growth rate
-- Deposit_Growth_YTD: Year-to-date growth rate
-
-**Total_M2** (216 records, 2005-2022):
-- Total_M2: Money supply M2
-- M2_Growth_YoY: Year-over-year growth rate
-- M2_Growth_YTD: Year-to-date growth rate
-
-**Frequency**: Monthly
-**Purpose**: Track Vietnam banking system liquidity and credit expansion
-
-### 8. Agriculture (6 tickers, 960 records)
-Rice price benchmarks (2000-2022):
-
-**Vietnam domestic** (3 tickers):
-- Rice_AnGiang, Rice_BacLieu, Rice_DongThap
-- Mekong Delta provinces (key rice producing regions)
-
-**Vietnam export** (1 ticker):
-- Rice_VN_Ex_FAO: FAO export price benchmark
-
-**Thailand comparison** (2 tickers):
-- Rice_Thailand_D: Domestic price
-- Rice_Thailand_Ex: Export price
-
-**Frequency**: Monthly
+**KeyCode**: Price
+**Frequency**: Daily
 **Unit**: USD/ton
-**Purpose**: Compare Vietnam vs Thailand rice competitiveness + regional price variations
+**Purpose**: Key input cost indicator for fertilizer sector (DCM, DPM)
 
-### 9. Textile (8 tickers, 959 records)
-Vietnam textile & garment export values (2010-2023):
+### 3. Energy (1 ticker, 4,608 records)
+| Ticker | Description |
+|--------|-------------|
+| JETFUEL | Jet fuel prices |
 
-**By product**:
-- VN_Textiles_garments_Export: Garments
-- VN_Foot_wears_Export: Footwear
-- VN_Yarn_Export: Yarn
-- VN_Textile_leather_footwear_materials_Export: Raw materials
+**KeyCode**: Price
+**Frequency**: Daily
+**Purpose**: Aviation cost indicator (ACV, VJC)
 
-**By destination market**:
-- VN_Textile_Export_US: Exports to United States
-- VN_Textile_Export_EU: Exports to European Union
-- VN_Textile_Export_Japan: Exports to Japan
+### 4. Ure India Tender (1 ticker, 19 records)
+India urea tender tracking:
 
-**Total**:
-- VN_Total_Textiles_Export: Aggregate exports
+| KeyCode | Description |
+|---------|-------------|
+| Price | Tender price |
+| Target_quantity | Target procurement quantity |
+| Volume_secured | Volume awarded |
 
-**Frequency**: Monthly
-**Unit**: USD (export value)
-**Purpose**: Track Vietnam's textile/garment export performance - key export industry
-
-### 10. Yarn (1 ticker, 290 records)
-Vietnam yarn imports (2011-2023):
-- **VN_Yarn_Import**:
-  - KeyCode: "Volume" (tons) and "Value" (USD)
-- **Frequency**: Monthly
-- **Purpose**: Track raw material imports for textile/garment manufacturing
-
-### 11. Cotton (1 ticker, 290 records)
-Vietnam cotton imports (2011-2023):
-- **VN_Cotton_Import**:
-  - KeyCode: "Volume" (tons) and "Value" (USD)
-- **Frequency**: Monthly
-- **Purpose**: Track raw material imports for textile/garment manufacturing
-
-### 12. Ure future (5 tickers, 1,656 records)
-- Urea futures prices
-- Related to fertilizer market
-
-### 13. Empty Category (2 tickers, 6,561 records)
-- **Gold_SJC**: Gold prices in Vietnam
-  - KeyCode: "Price_Bid" and "Price_Ask"
+**Purpose**: Track India urea tenders affecting Vietnamese fertilizer exports
 
 ---
 
@@ -184,11 +103,32 @@ Vietnam cotton imports (2011-2023):
 
 **Filter**: `WHERE Category IS NULL`
 
-**46 stock tickers** with high-frequency operational metrics providing early signals before quarterly earnings.
+**17 stock tickers** with high-frequency operational metrics providing early signals before quarterly earnings.
 
-### Retail & Consumer (2 tickers)
+### Technology (1 ticker)
 
-#### MWG - Mobile World (10 KeyCodes)
+#### FPT - FPT Corporation (11 KeyCodes)
+FPT Software (Fsoft) monthly operational metrics:
+
+| KeyCode | Description | Frequency |
+|---------|-------------|-----------|
+| Fsoft_Monthly_Rev | Monthly revenue | Monthly |
+| Fsoft_Monthly_PBT | Monthly profit before tax | Monthly |
+| Fsoft_Monthly_PBT_YoY | PBT year-over-year growth | Monthly |
+| Fsoft_Monthly_Signed_Rev | Monthly signed contract revenue | Monthly |
+| Fsoft_Monthly_Signed_Rev_YoY | Signed revenue YoY growth | Monthly |
+| Fsoft_YTD_Rev | Year-to-date revenue | Monthly |
+| Fsoft_YTD_PBT | Year-to-date PBT | Monthly |
+| Fsoft_YTD_PBT_YoY | YTD PBT year-over-year growth | Monthly |
+| Fsoft_YTD_Signed_Rev | YTD signed contract revenue | Monthly |
+| Fsoft_YTD_Signed_Rev_YoY | YTD signed revenue YoY growth | Monthly |
+
+**Unit**: VND billion
+**Purpose**: Track FPT's IT services growth momentum
+
+### Retail & Consumer (3 tickers)
+
+#### MWG - Mobile World (9 KeyCodes)
 Store count by brand:
 - Store_TGDD: Thế Giới Di Động (mobile phones)
 - Store_DMX: Điện Máy Xanh (consumer electronics)
@@ -202,110 +142,147 @@ Revenue by segment:
 - Monthly_Revenue: Total monthly revenue
 
 Performance metrics:
-- Monthly_NPAT: Monthly net profit
 - Revstore_BHX: Revenue per BHX store
 
 **Frequency**: Monthly
 
 #### PNJ - Phu Nhuan Jewelry (2 KeyCodes)
-- Monthly_Sales: Monthly sales revenue
-- Monthly_NPATMI: Monthly net profit
+| KeyCode | Description |
+|---------|-------------|
+| Monthly_Sales | Monthly sales revenue |
+| Monthly_NPATMI | Monthly net profit |
+
+**Frequency**: Monthly
+
+#### QNS - Quang Ngai Sugar (2 KeyCodes)
+| KeyCode | Description |
+|---------|-------------|
+| Monthly_Sales | Monthly sales revenue |
+| Monthly_PBT | Monthly profit before tax |
 
 **Frequency**: Monthly
 
 ### Seafood Export (3 tickers)
 
-Export-focused companies with detailed trade data by destination:
+Export-focused pangasius companies with detailed trade data by destination:
 
-#### VHC - Vinh Hoan (26 KeyCodes) - Most detailed
-#### ANV - An Viet (14 KeyCodes)
-#### IDI - IDI Corp (13 KeyCodes)
+#### VHC - Vinh Hoan (13 KeyCodes)
+#### ANV - An Viet (13 KeyCodes)
+#### IDI - IDI Corp (12 KeyCodes)
 
 **Metrics for each destination** (China, EU, US, Total):
-- Export_{Destination}_Price: Price per ton
-- Export_{Destination}_Volume: Export volume in tons
-- Export_{Destination}_Value: Export value in USD
-- Export_{Destination}_Price_Monthly / Volume_Monthly / Value_Monthly: Monthly aggregates
 
-**Input costs**:
-- Input_price: Raw material cost in VND
-- Input_Price_USD: Raw material cost in USD
+| KeyCode Pattern | Description |
+|-----------------|-------------|
+| Export_{Dest}_Price | Price per ton (USD/ton) |
+| Export_{Dest}_Volume | Export volume (tons) |
+| Export_{Dest}_Value | Export value (USD) |
 
-**Frequency**: Weekly (VHC), varies by company
+**Input costs** (VHC, ANV only):
+- Input_Price_USD: Raw material cost in USD/kg
+
+**Frequency**: Weekly
 **Purpose**: Early indicator of export performance and margins before quarterly earnings
+
+### Fertilizer (2 tickers)
+
+#### DCM - Ca Mau Fertilizer (3 KeyCodes)
+| KeyCode | Description | Frequency |
+|---------|-------------|-----------|
+| Sales_Ure_Domestic | Domestic urea sales volume (tons) | Monthly |
+| Sales_NPK | NPK fertilizer sales volume (tons) | Monthly |
+| Sales_NPK_Export | NPK export volume (tons) | Monthly |
+
+#### DPM - Petrovietnam Fertilizer (3 KeyCodes)
+| KeyCode | Description | Frequency |
+|---------|-------------|-----------|
+| Sales_Ure | Urea sales volume (tons) | Quarterly |
+| Sales_NPK | NPK sales volume (tons) | Quarterly |
+| Gas_cost | Gas input cost | Quarterly |
 
 ### Aviation (1 ticker)
 
 #### ACV - Airport Corporation of Vietnam (4 KeyCodes)
-Passenger traffic:
-- Domestic_passengers: Domestic passenger count
-- International_passengers: International passenger count
-- Total_passengers: Total passengers
-- Air_cargo: Air cargo volume
+| KeyCode | Description |
+|---------|-------------|
+| Domestic_passengers | Domestic passenger count |
+| International_passengers | International passenger count |
+| Total_passengers | Total passengers |
+| Air_cargo | Air cargo volume |
 
 **Frequency**: Monthly
 **Purpose**: Leading indicator for tourism/aviation sector earnings
 
-### Banking Sector (25+ tickers)
+### Textile & Apparel (1 ticker)
 
-Major banks with operational metrics:
-**VCB, TCB, MBB, BID, CTG, ACB, HDB, TPB, STB, VPB, VIB, LPB, EIB, OCB, MSB, SHB, SSB, ABB, BVB, NAB, KLB, PTB, DBC, NVB, VCS, SGB, BAB, VBB, VAB, PGB**
+#### TNG - TNG Investment (5 KeyCodes)
+| KeyCode | Description |
+|---------|-------------|
+| Monthly_Sales | Monthly sales revenue |
+| Monthly_GrossProfit | Monthly gross profit |
+| Monthly_GPM | Gross profit margin |
+| Monthly_NPATMI | Monthly net profit |
+| Monthly_NPM | Net profit margin |
 
-**Common KeyCodes**:
-- **CAR**: Capital Adequacy Ratio
-- **NIM_Quarterly**: Net Interest Margin (quarterly)
-- **NIM_Yearly** or **NIM_ Yearly**: Net Interest Margin (annual)
-- **STF_MLTL**: Staffing/headcount metrics
-
-**VCB-specific**:
-- 12M_Deposit: 12-month deposit rate
-- 6M_Deposit: 6-month deposit rate
-
-**Frequency**: Monthly/Quarterly
-**Purpose**: Track key banking metrics between quarterly earnings reports
-
-### Steel & Industrial (1 ticker)
-
-#### HPG - Hoa Phat Group (10 KeyCodes)
-Steel market prices:
-- Spot_VN_HRC: Vietnam Hot Rolled Coil spot price
-- Spot_VN_LS: Vietnam Long Steel spot price
-- Spot_China_HRC: China HRC spot price
-- Spot_China_LS: China LS spot price
-
-15-day moving averages:
-- VN_HRC_MA15, VN_LS_MA15
-- China_HRC_MA15, China_LS_MA15
-
-Input costs:
-- EAF: Electric Arc Furnace cost
-- EAF_MA15: EAF 15-day moving average
-
-**Frequency**: Daily
-**Purpose**: Track steel market dynamics and margin indicators for HPG
-
-### Fertilizer & Chemicals (3 tickers)
-
-#### DCM, DPM (1 KeyCode each)
-- Ure_DCM: DCM urea price
-- Ure_DPM: DPM urea price
-
-**Frequency**: Daily
-**Purpose**: Fertilizer market price tracking
-
-#### BSR - Binh Son Refining (1 KeyCode)
-- Refinery operations metrics
+**Frequency**: Monthly
+**Purpose**: Track textile/garment manufacturer performance
 
 ### Oil & Gas (2 tickers)
 
-#### PVT - PetroVietnam Transportation (3 KeyCodes)
-Transportation-related metrics
+#### PVT - PetroVietnam Transportation (2 KeyCodes)
+| KeyCode | Description | Unit |
+|---------|-------------|------|
+| Crude_TC | Crude tanker time charter rate | $/day |
+| ProductMR_TC | Product tanker (MR) time charter rate | $/day |
+
+**Frequency**: Weekly
+**Purpose**: Track tanker charter rates affecting PVT revenue
 
 #### PVD - PetroVietnam Drilling (2 KeyCodes)
-Drilling operations metrics
+| KeyCode | Description |
+|---------|-------------|
+| SEAJU_Rate | Southeast Asia jack-up rig day rate |
+| SEAJU_Ulti | Southeast Asia jack-up utilization rate |
 
-### Other Companies (8+ tickers)
-TNG, CTR, QNS, VTP and others with 1-5 KeyCodes each for company-specific operational tracking.
+**Frequency**: Monthly
+**Purpose**: Track rig utilization and rates for drilling sector
+
+### Building Materials (2 tickers)
+
+#### PTB - Phu Tai (2 KeyCodes)
+| KeyCode | Description |
+|---------|-------------|
+| Wood_Export_Value | Wood product export value |
+| Quartz_Export_Value | Quartz/stone export value |
+
+**Frequency**: Monthly
+
+#### VCS - Vicostone (1 KeyCode)
+| KeyCode | Description |
+|---------|-------------|
+| Quartz_Export_Value | Quartz/stone export value |
+
+**Frequency**: Monthly
+
+### Telecom Infrastructure (1 ticker)
+
+#### CTR - Viettel Construction (1 KeyCode)
+| KeyCode | Description | Unit |
+|---------|-------------|------|
+| Tower_count | Total telecom tower count | Tower |
+
+**Frequency**: Monthly
+**Purpose**: Track tower rollout for telecom infrastructure
+
+### Logistics (1 ticker)
+
+#### VTP - Viettel Post (2 KeyCodes)
+| KeyCode | Description |
+|---------|-------------|
+| Service_Rev | Service revenue (quarterly) |
+| Service_Rev_TTM | Service revenue trailing 12 months |
+
+**Frequency**: Quarterly
 
 ---
 
@@ -329,7 +306,7 @@ ORDER BY Ticker
 -- Get KeyCodes for a specific ticker
 SELECT DISTINCT KeyCode
 FROM dbo.iris_manual_data
-WHERE Ticker = 'MWG'
+WHERE Ticker = 'FPT'
 ORDER BY KeyCode
 ```
 
@@ -363,7 +340,30 @@ GROUP BY Ticker
 ORDER BY KeyCode_Count DESC
 ```
 
-**For complex query patterns and best practices, see**: [MCP_SQL_QUERY_BEST_PRACTICES.md](MCP_SQL_QUERY_BEST_PRACTICES.md)
+### Example: FPT Software Monthly Metrics
+
+```sql
+SELECT Date, KeyCode, Value
+FROM dbo.iris_manual_data
+WHERE Ticker = 'FPT'
+  AND KeyCode LIKE 'Fsoft_Monthly%'
+  AND Date >= '2024-01-01'
+ORDER BY Date DESC, KeyCode
+```
+
+### Example: Seafood Export Comparison
+
+```sql
+SELECT Ticker, Date,
+       MAX(CASE WHEN KeyCode = 'Export_Total_Volume' THEN Value END) AS Volume,
+       MAX(CASE WHEN KeyCode = 'Export_Total_Price' THEN Value END) AS Price,
+       MAX(CASE WHEN KeyCode = 'Export_Total_Value' THEN Value END) AS Value
+FROM dbo.iris_manual_data
+WHERE Ticker IN ('VHC', 'ANV', 'IDI')
+  AND KeyCode LIKE 'Export_Total%'
+GROUP BY Ticker, Date
+ORDER BY Date DESC, Ticker
+```
 
 ---
 
@@ -371,36 +371,27 @@ ORDER BY KeyCode_Count DESC
 
 ### 1. Alternative Data Trading
 High-frequency operational metrics provide early signals before quarterly earnings:
-- MWG store expansion tracking
+- FPT Software signed contract growth
+- MWG store expansion and revenue tracking
 - ACV passenger traffic trends
 - VHC/ANV/IDI export volume changes
-- Banking sector NIM/CAR movements
+- DCM/DPM fertilizer sales volumes
 
 ### 2. Commodity Price Analysis
-Track commodity price trends across multiple categories:
-- Hog prices (regional comparison)
-- Rice prices (Vietnam vs Thailand)
-- Fertilizer/chemical input costs
-- Steel market dynamics
+Track commodity price trends:
+- Urea spreads (for DCM, DPM margin analysis)
+- Jet fuel prices (for aviation cost analysis)
+- Hog/piglet prices (for livestock sector)
 
-### 3. Banking System Monitoring
-Macro-level banking indicators:
-- Total credit/deposit growth (Vietnam Macro category)
-- Interest rate environment (Interest Rate category)
-- Individual bank metrics (Banking sector tickers)
-
-### 4. Export Trade Analysis
+### 3. Export Performance Monitoring
 Vietnam's key export industries:
-- Textile/garment exports by product and destination
 - Seafood exports by destination (VHC, ANV, IDI)
-- Raw material imports (yarn, cotton)
+- Textile performance (TNG)
+- Building materials exports (PTB, VCS)
 
-### 5. Input Cost Tracking
-Monitor raw material costs for margin analysis:
-- Phosphorus (for fertilizer producers)
-- Urea (for agricultural sector)
-- EAF costs (for steel producers)
-- Jet fuel (for aviation)
+### 4. Oil & Gas Sector Indicators
+- Tanker charter rates (PVT)
+- Rig utilization rates (PVD)
 
 ---
 
@@ -418,7 +409,7 @@ LEFT JOIN dbo.iris_manual_data i
     ON f.TICKER = i.Ticker
     AND i.KeyCode = 'Store_TGDD'
     AND YEAR(f.DATE) = YEAR(i.Date)
-    AND QUARTER(f.DATE) = QUARTER(i.Date)
+    AND MONTH(f.DATE) = MONTH(i.Date)
 WHERE f.TICKER = 'MWG'
     AND f.KEYCODE = 'Net_Revenue'
 ORDER BY f.DATE DESC
@@ -426,17 +417,17 @@ ORDER BY f.DATE DESC
 
 ### Combine with Market Data
 ```sql
--- Example: Banking NIM trends vs stock price
+-- Example: ACV passenger trends vs stock price
 SELECT
     i.Date,
-    i.Value AS NIM,
+    i.Value AS Total_Passengers,
     m.CLOSE_PRICE
 FROM dbo.iris_manual_data i
 LEFT JOIN dbo.Market_Data m
     ON i.Ticker = m.TICKER
-    AND i.Date = m.TRADE_DATE
-WHERE i.Ticker = 'VCB'
-    AND i.KeyCode = 'NIM_Quarterly'
+    AND CAST(i.Date AS DATE) = CAST(m.TRADE_DATE AS DATE)
+WHERE i.Ticker = 'ACV'
+    AND i.KeyCode = 'Total_passengers'
 ORDER BY i.Date DESC
 ```
 
@@ -444,11 +435,11 @@ ORDER BY i.Date DESC
 
 ## Data Quality Notes
 
-1. **Frequency Varies**: Check `Frequency` column - mix of Daily, Weekly, Monthly
+1. **Frequency Varies**: Check `Frequency` column - mix of Daily, Weekly, Monthly, Quarterly
 2. **Measure Units**: Always check `MeasureUnit` for correct interpretation
 3. **Date Ranges**: Not all tickers have continuous data - use MIN/MAX date queries
 4. **Category NULL**: Intentional for stock tickers - use as filter criterion
-5. **KeyCode Consistency**: KeyCode naming may vary slightly between tickers
+5. **KeyCode Consistency**: KeyCode naming is consistent within each ticker
 
 ---
 
@@ -460,6 +451,6 @@ ORDER BY i.Date DESC
 
 ---
 
-**Last Verified**: 2025-11-12
-**Data Coverage**: 2000-2025 (varies by ticker/category)
-**Total Records**: 158,021
+**Last Verified**: 2025-12-17
+**Data Coverage**: 2002-2025 (varies by ticker/category)
+**Total Records**: 37,314
