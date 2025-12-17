@@ -205,7 +205,12 @@ maxOutputSize: 100000
 - `save_csv(data, path, include_header=True)` - Save DataFrame to CSV on server
 
 **Pre-imported:**
-- `pd` (pandas), `np` (numpy), `scipy`, `sklearn`
+- `pd` (pandas), `np` (numpy), `scipy`, `sklearn`, `plt` (matplotlib)
+
+**Charts:**
+- Use `plt.savefig('filename.png')` to generate charts
+- Server returns a temp download URL in the result
+- Fetch the URL to display the chart
 
 ### Example: Combined Analysis
 

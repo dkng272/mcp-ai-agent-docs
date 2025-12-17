@@ -66,8 +66,8 @@ The project includes linked documentation with clear reading order:
 - Use `mongo_find()`, `mongo_aggregate()` for MongoDB
 - Assign output to `result` variable (JSON-serializable)
 - Aggregate before returning — don't send raw DataFrames
-- Available: `pd`, `np`, `scipy`, `sklearn`
-- No matplotlib — use computer tool for charts
+- Available: `pd`, `np`, `scipy`, `sklearn`, `plt` (matplotlib)
+- Charts: Use `plt.savefig()` → returns temp download URL in result
 
 ### CVD (Money Flow)
 | Tool | Use Case |
@@ -128,7 +128,10 @@ postgres_stock_cvd("VCB") → VCB specific flow
 
 **Code Editing**: Use `str_replace` to modify specific sections, not rewrite entire files.
 
-**Charts**: For time-series, create continuous day index (no weekend gaps), set x-axis ticks manually.
+**Charts via execute_python**:
+- Use `plt.savefig('chart.png')` — server returns temp download URL
+- Fetch the URL to display chart inline
+- For time-series: create continuous day index (no weekend gaps), set x-axis ticks manually
 
 **Prioritize analysis**: Charts + commentary; skip markdown/CSV unless requested.
 

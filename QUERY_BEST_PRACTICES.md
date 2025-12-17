@@ -186,7 +186,7 @@ GROUP BY fq.TICKER
 
 ### 1. NO Import Statements
 
-All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `query()`
+All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `plt` (matplotlib), `sql_query()`
 
 ```python
 # ✅ CORRECT
@@ -332,6 +332,7 @@ Check date format (`'2024-01-01'` not `'01/01/2024'`) and filter conditions.
 - [ ] Assigned to `result` variable
 - [ ] Result is JSON-serializable
 - [ ] Aggregated data (not raw DataFrames)
+- [ ] Charts: use `plt.savefig()` → returns temp download URL
 
 ---
 
