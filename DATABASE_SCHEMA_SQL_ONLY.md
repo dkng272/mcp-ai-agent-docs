@@ -1,6 +1,6 @@
 # Database Schema Documentation - SQL Server Only
 
-**Last Updated**: 2025-12-11 (Added Market_Data foreign flow columns, Aviation extended tables, Banking rates/writeoff, Bonds issuance, Brokerage propbook, Vietnam credit/deposit, IRIS_Company_Comments)
+**Last Updated**: 2025-12-17 (Added Forecast_history, Model_Portfolio)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **MCP_SQL_QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -22,7 +22,7 @@
 - **Azure SQL**: MCP Server
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
-  - Tables: 42 (financial data, sector operations, commodities, market intelligence, banking rates, bonds, analyst comments)
+  - Tables: 44 (financial data, sector operations, commodities, market intelligence, banking rates, bonds, analyst comments, portfolios)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -203,6 +203,49 @@ FROM Forecast_Consensus
 WHERE KEYCODE LIKE 'HSC.%'
   AND FORECASTDATE = (SELECT MAX(FORECASTDATE) FROM Forecast_Consensus WHERE KEYCODE LIKE 'HSC.%')
 ORDER BY TICKER
+```
+
+---
+
+#### `Forecast_history`
+**Purpose**: Historical NPATMI forecasts by ticker with timestamp tracking
+
+**Schema**:
+```sql
+Ticker        nvarchar   -- Stock ticker
+Year          int        -- Forecast year
+Quarter       int        -- Quarter (1-4 for quarterly, 5 for annual)
+KeyCode       nvarchar   -- Metric identifier (currently NPATMI only)
+Value         decimal    -- Forecast value
+CreatedDate   datetime2  -- When forecast was created
+```
+
+**Key Notes**:
+- `Quarter = 5` indicates **annual** forecast (not Q5)
+- Currently contains only `NPATMI` forecasts
+- Tracks forecast changes over time via `CreatedDate`
+
+**Data Coverage**: 2,882 records
+
+**Example Queries**:
+```sql
+-- Get latest NPATMI forecasts for a ticker
+SELECT Ticker, Year, Quarter, Value, CreatedDate
+FROM Forecast_history
+WHERE Ticker = 'VNM'
+ORDER BY Year, Quarter, CreatedDate DESC
+
+-- Get annual forecasts (Quarter = 5)
+SELECT Ticker, Year, Value, CreatedDate
+FROM Forecast_history
+WHERE Quarter = 5 AND Year = 2025
+ORDER BY CreatedDate DESC
+
+-- Track forecast revisions over time
+SELECT Ticker, Year, Value, CreatedDate
+FROM Forecast_history
+WHERE Ticker = 'FPT' AND Year = 2025 AND Quarter = 5
+ORDER BY CreatedDate
 ```
 
 ---
@@ -1139,6 +1182,50 @@ ORDER BY date
 
 ---
 
+### Portfolio Tables
+
+#### `Model_Portfolio`
+**Purpose**: Model portfolio holdings and weights (NAV-based allocation)
+
+**Schema**:
+```sql
+Port          varchar    -- Portfolio name
+Date          datetime2  -- Portfolio date
+AssetId       nvarchar   -- Stock ticker
+NAVWeight     float      -- Weight as percentage of NAV (0.01 = 1%)
+UpdatedOn     datetime2  -- Last update timestamp
+```
+
+**Portfolios Available**:
+- `BIG PORT INCEPTION` - Large-cap focused portfolio
+- `SMALL PORT INCEPTION` - Small-cap focused portfolio
+
+**Data Coverage**: 2,593 records
+
+**Example Queries**:
+```sql
+-- Get current portfolio holdings
+SELECT Port, AssetId, NAVWeight, Date
+FROM Model_Portfolio
+WHERE Date = (SELECT MAX(Date) FROM Model_Portfolio)
+ORDER BY Port, NAVWeight DESC
+
+-- Get top holdings for BIG PORT
+SELECT AssetId, NAVWeight
+FROM Model_Portfolio
+WHERE Port = 'BIG PORT INCEPTION'
+  AND Date = (SELECT MAX(Date) FROM Model_Portfolio WHERE Port = 'BIG PORT INCEPTION')
+ORDER BY NAVWeight DESC
+
+-- Track weight changes for a stock
+SELECT Date, Port, NAVWeight
+FROM Model_Portfolio
+WHERE AssetId = 'VPB'
+ORDER BY Date DESC
+```
+
+---
+
 ### Analyst Commentary Tables
 
 #### `IRIS_Company_Comments`
@@ -1355,6 +1442,8 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "Brokerage proprietary holdings" | `Brokerage_Propbook` | `Ticker`, `Holdings`, `Value` |
 | "Corporate bond issuance" | `Bonds_Issuance` | `issuer`, `issuance_value_billion_vnd`, `interest_rate` |
 | "Analyst comments/news on stocks" | `IRIS_Company_Comments` | `TICKER`, `TITLE`, `IMPACT`, `CREATEDATE` |
+| "NPATMI forecast history" | `Forecast_history` | `Ticker`, `Year`, `Quarter`, `Value`, `CreatedDate` |
+| "Model portfolio holdings" | `Model_Portfolio` | `Port`, `AssetId`, `NAVWeight`, `Date` |
 
 ---
 
@@ -1363,7 +1452,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Data Need | Table |
 |-----------|-------|
 | Stock financials | `FA_Quarterly`, `FA_Annual` |
-| Analyst forecasts | `Forecast`, `Forecast_Consensus` |
+| Analyst forecasts | `Forecast`, `Forecast_Consensus`, `Forecast_history` |
 | Target prices & ratings | `Forecast` (broker-specific KEYCODE) |
 | Commodity prices | `Commodity` (filter by Sector) |
 | Commodity price lookup | `Ticker_Reference` (commodities only!) |
@@ -1382,6 +1471,7 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Brokerage prop book | `Brokerage_Propbook` |
 | Corporate bond issuance | `Bonds_Issuance` |
 | Analyst comments/news | `IRIS_Company_Comments` |
+| Model portfolio weights | `Model_Portfolio` |
 | Steel industry operations | `Steel_data` |
 | Aviation operations | `Aviation_Operations` |
 | Airline ticket prices | `Aviation_Airfare` |
