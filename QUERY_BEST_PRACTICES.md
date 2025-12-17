@@ -191,8 +191,9 @@ All packages pre-imported: `pd`, `np`, `scipy`, `stats`, `sklearn`, `plt`, `matp
 **Export functions (for heavy data + complex charts):**
 - `save_csv(df, filename, downloadable=True)` → download URL
 - `save_figure(fig, filename)` → download URL for charts
+- Then use `curl -o local_file <url>` to download
 
-Use these for complex visualizations on large datasets — query + chart + export in one call.
+Query + chart + export in one call — much faster than computer tool workflows.
 
 ```python
 # ✅ CORRECT
