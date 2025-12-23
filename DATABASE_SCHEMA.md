@@ -1619,6 +1619,7 @@ mongo_aggregate("AgentSkillSets", [
   source: string,              // Research source ("gavekal", "goldman_sachs")
   author: string,              // Author name
   date: Date,                  // Article publication date
+  date_iso: string,            // Normalized date (YYYY-MM-DD) for sorting/filtering
   url: string,                 // Article URL
   content: string,             // Full article text
   summary: string,             // AI-generated summary with thesis and key points
@@ -1629,9 +1630,21 @@ mongo_aggregate("AgentSkillSets", [
 
 **Sources**: Gavekal Research, Goldman Sachs (Weekly Fund Flows, economic reports)
 
-**Use Case**: Full-text search and semantic retrieval for macro research and market analysis
+**When to Use**:
+- **`mongo_find`**: Simple queries - get recent articles by source, filter by date, list by author
+- **`mongo_vector_search`**: Semantic queries - find articles about specific topics/themes
 
-**Example**: `mongo_find("macro_research_articles", { source: "gavekal" }, { title: 1, date: 1, summary: 1 }, { date: -1 }, 10)`
+**Examples**:
+```javascript
+// Get 5 most recent Goldman Sachs reports
+mongo_find("macro_research_articles", { source: "goldman_sachs" }, { title: 1, date_iso: 1, summary: 1 }, { date_iso: -1 }, 5)
+
+// Get Gavekal articles from last week
+mongo_find("macro_research_articles", { source: "gavekal", date_iso: { $gte: "2025-12-16" } }, { title: 1, author: 1, date_iso: 1 }, { date_iso: -1 })
+
+// Get articles by specific author
+mongo_find("macro_research_articles", { author: "Louis Gave" }, { title: 1, date_iso: 1, summary: 1 }, { date_iso: -1 }, 10)
+```
 
 ---
 

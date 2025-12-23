@@ -226,6 +226,28 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 | `chunk_index` / `total_chunks` | Which part of the article (long articles are split into chunks) |
 | `deduplicated` | If true, each result is a unique article (best-scoring chunk shown) |
 
+**When to use `mongo_vector_search` vs `mongo_find`:**
+
+| Query Type | Tool | Example |
+|------------|------|---------|
+| **Topic/theme search** | `mongo_vector_search` | "Find articles about Fed rate policy" |
+| **Recent by source** | `mongo_find` | "Get 5 latest Goldman Sachs reports" |
+| **Filter by date** | `mongo_find` | "Gavekal articles from last week" |
+| **Filter by author** | `mongo_find` | "Articles by Louis Gave" |
+
+```python
+# Simple queries - use mongo_find on macro_research_articles
+# Get 5 most recent Goldman Sachs reports
+collection: "macro_research_articles"
+filter: {"source": "goldman_sachs"}
+projection: {"title": 1, "date_iso": 1, "summary": 1}
+sort: {"date_iso": -1}
+limit: 5
+
+# Get articles from specific date range
+filter: {"source": "gavekal", "date_iso": {"$gte": "2025-12-01"}}
+```
+
 ### Available MongoDB Collections
 
 | Collection | Description |
