@@ -156,6 +156,76 @@ filter: {"status": "inactive"}
 delete_many: false
 ```
 
+### `mongo_vector_search`
+Semantic search over macro research articles using vector embeddings.
+
+```python
+query: "inflation outlook"           # Natural language search (required)
+limit: 5                             # Max results (default: 5, max: 20)
+source: "gavekal"                    # Filter: "gavekal", "goldman_sachs", or array of both
+days: 7                              # Get articles from last N days
+date_from: "2025-01-01"              # Start date (YYYY-MM-DD)
+date_to: "2025-12-31"                # End date (YYYY-MM-DD)
+deduplicate: true                    # Return unique articles only (default: true)
+min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.5)
+```
+
+**Sources:**
+- Gavekal Research (~1100 chunks) - Independent macro research
+- Goldman Sachs (~800 chunks) - Investment bank research (has series_name field)
+
+**Examples:**
+```python
+# Recent updates on inflation
+{"query": "inflation outlook", "days": 7}
+
+# Last month's Fed coverage from Gavekal
+{"query": "Fed rate cuts", "days": 30, "source": "gavekal"}
+
+# Date range search
+{"query": "China economy", "date_from": "2025-10-01", "date_to": "2025-12-31"}
+
+# All sources
+{"query": "tariffs", "source": ["gavekal", "goldman_sachs"]}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "query": "inflation outlook",
+  "filters": { "source": "all", "date_from": "2025-12-16", "date_to": "2025-12-23", "days": 7 },
+  "deduplicated": true,
+  "limit": 5,
+  "min_score": 0.5,
+  "result_count": 5,
+  "results": [
+    {
+      "title": "Vietnam's Inflation Pressures",
+      "source": "gavekal",
+      "series_name": null,
+      "author": "Louis Gave",
+      "date": "20 Dec 2025",
+      "date_iso": "2025-12-20",
+      "content": "Article chunk text...",
+      "summary": "Brief summary...",
+      "url": "https://research.gavekal.com/...",
+      "chunk_index": 0,
+      "total_chunks": 3,
+      "score": 0.847
+    }
+  ]
+}
+```
+
+| Response Field | Description |
+|----------------|-------------|
+| `score` | Similarity to query (0-1, higher = more relevant) |
+| `date_iso` | Normalized date (YYYY-MM-DD) for sorting |
+| `series_name` | Goldman Sachs report series (e.g., "USA", "China", "Global Markets Daily") |
+| `chunk_index` / `total_chunks` | Which part of the article (long articles are split into chunks) |
+| `deduplicated` | If true, each result is a unique article (best-scoring chunk shown) |
+
 ### Available MongoDB Collections
 
 | Collection | Description |
@@ -166,6 +236,8 @@ delete_many: false
 | `InterbankUpdates` | Interbank rate updates |
 | `LendingRates` | Bank lending rate data |
 | `MoCData` | Ministry of Construction real estate data |
+| `macro_research_articles` | Macro research articles (Gavekal, Goldman Sachs) |
+| `macro_research_embeddings` | Vector embeddings for semantic search |
 
 ---
 
@@ -402,6 +474,7 @@ download_path: "~/Downloads/report.pdf"  # optional
 | SQL | `mssql_export_data` | Export large datasets to CSV (server path) |
 | MongoDB | `mongo_find` | Query company models, RE projects |
 | MongoDB | `mongo_aggregate` | Complex aggregations |
+| MongoDB | `mongo_vector_search` | Semantic search macro research articles |
 | Python | `execute_python` | Combined SQL+MongoDB analysis |
 | Python | `save_csv(..., downloadable=True)` | Export CSV with download URL |
 | Python | `save_figure(fig, filename)` | Export chart with download URL |
@@ -420,4 +493,4 @@ download_path: "~/Downloads/report.pdf"  # optional
 
 ---
 
-*Last updated: December 17, 2025*
+*Last updated: December 23, 2025*

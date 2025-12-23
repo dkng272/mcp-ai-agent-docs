@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-12-17 (Added MongoDB collections)
+**Last Updated**: 2025-12-23 (Added macro_research_embeddings collection and mongo_vector_search tool)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -27,7 +27,7 @@
 
 - **MongoDB**: MCP Server (`mcp__claudetrade-mcp__mongo_*` tools)
   - Database: `IRIS`
-  - Collections: 6 (analyst models, real estate projects, interbank updates, lending rates, MoC data, AI knowledge base)
+  - Collections: 8 (analyst models, real estate projects, interbank updates, lending rates, MoC data, AI knowledge base, macro research articles, vector embeddings)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -1606,10 +1606,77 @@ mongo_aggregate("AgentSkillSets", [
 
 ---
 
+### `macro_research_articles`
+**Purpose**: Curated macro research articles from leading research firms for RAG-based retrieval
+
+**Document Count**: 1,085
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  title: string,               // Article title
+  source: string,              // Research source ("gavekal", "goldman_sachs")
+  author: string,              // Author name
+  date: Date,                  // Article publication date
+  url: string,                 // Article URL
+  content: string,             // Full article text
+  summary: string,             // AI-generated summary with thesis and key points
+  series_name: string,         // Series name (optional, e.g., "Weekly Fund Flows")
+  created_at: Date             // Database insertion timestamp
+}
+```
+
+**Sources**: Gavekal Research, Goldman Sachs (Weekly Fund Flows, economic reports)
+
+**Use Case**: Full-text search and semantic retrieval for macro research and market analysis
+
+**Example**: `mongo_find("macro_research_articles", { source: "gavekal" }, { title: 1, date: 1, summary: 1 }, { date: -1 }, 10)`
+
+---
+
+### `macro_research_embeddings`
+**Purpose**: Vector embeddings for semantic search over macro research articles (RAG retrieval)
+
+**Document Count**: ~1,900 chunks (articles split into searchable chunks)
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  article_id: ObjectId,           // Reference to parent article in macro_research_articles
+  title: string,                  // Article title
+  source: string,                 // "gavekal" or "goldman_sachs"
+  author: string,                 // Author name
+  date: Date,                     // Article publication date
+  series_name: string,            // Series name (Goldman Sachs only, e.g., "Weekly Fund Flows")
+  chunk_index: number,            // Chunk position within article (0-indexed)
+  chunk_text: string,             // Text content of this chunk
+  embedding: [number],            // 1536-dimensional vector (OpenAI text-embedding-3-small)
+  created_at: Date                // Embedding creation timestamp
+}
+```
+
+**Vector Search Tool**: Use `mongo_vector_search` instead of direct queries for semantic search.
+
+**Example Vector Search**:
+```python
+# Semantic search for inflation-related articles
+mongo_vector_search(query="inflation outlook", days=7)
+
+# Filter by source with date range
+mongo_vector_search(query="Fed rate cuts", source="gavekal", date_from="2025-01-01")
+
+# Search across all sources
+mongo_vector_search(query="China economy tariffs", source=["gavekal", "goldman_sachs"], limit=10)
+```
+
+---
+
 ## MongoDB Quick Reference
 
-| Question | Collection | Query |
-|----------|------------|-------|
+| Question | Collection/Tool | Query |
+|----------|-----------------|-------|
 | "Get analyst model for MWG" | `CompanyModels` | `{ ticker: "MWG" }` |
 | "List all real estate projects by NAV" | `RealEstateProjects` | Sort by `npv_to_company` desc |
 | "Get VHM projects with IRR > 30%" | `RealEstateProjects` | `{ ticker: "VHM", irr: { $gt: 30 } }` |
@@ -1617,6 +1684,9 @@ mongo_aggregate("AgentSkillSets", [
 | "Bank mortgage rates" | `LendingRates` | `{}` (all) or `{ ticker: "VCB" }` |
 | "Real estate transaction volume" | `MoCData` | `{}` sorted by year/quarter |
 | "AI sector knowledge for real estate" | `AgentSkillSets` | `{ skill_set_id: "sector:real_estate" }` |
+| "Macro research articles on Vietnam" | `macro_research_articles` | `{ content: { $regex: "Vietnam", $options: "i" } }` |
+| "Find articles about Fed policy" | `mongo_vector_search` | `query="Fed rate policy", days=30` |
+| "Recent China economy research" | `mongo_vector_search` | `query="China economy", source="gavekal"` |
 
 ---
 
