@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-12-23 (Added macro_research_embeddings collection and mongo_vector_search tool)
+**Last Updated**: 2025-12-24 (Added region/country filtering to mongo_vector_search)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -1657,31 +1657,47 @@ mongo_find("macro_research_articles", { author: "Louis Gave" }, { title: 1, date
 ```javascript
 {
   _id: ObjectId,
-  article_id: ObjectId,           // Reference to parent article in macro_research_articles
   title: string,                  // Article title
   source: string,                 // "gavekal" or "goldman_sachs"
-  author: string,                 // Author name
-  date: Date,                     // Article publication date
   series_name: string,            // Series name (Goldman Sachs only, e.g., "Weekly Fund Flows")
+  date_iso: string,               // Normalized date (YYYY-MM-DD) for filtering
+  region: string,                 // Geographic region: "us", "asia", "europe", "global"
+  country: string,                // Specific country: "us", "china", "japan", "india", "uk", "vietnam"
+  content: string,                // Text content of this chunk
+  summary: string,                // AI-generated summary
   chunk_index: number,            // Chunk position within article (0-indexed)
-  chunk_text: string,             // Text content of this chunk
+  total_chunks: number,           // Total chunks in article
   embedding: [number],            // 1536-dimensional vector (OpenAI text-embedding-3-small)
-  created_at: Date                // Embedding creation timestamp
 }
 ```
 
 **Vector Search Tool**: Use `mongo_vector_search` instead of direct queries for semantic search.
+
+**Pre-filter Fields** (indexed for fast filtering):
+- `source`: "gavekal", "goldman_sachs"
+- `region`: "us", "asia", "europe", "global"
+- `country`: "us", "china", "japan", "india", "uk", "vietnam"
+- `date_iso`: YYYY-MM-DD format for date range filtering
 
 **Example Vector Search**:
 ```python
 # Semantic search for inflation-related articles
 mongo_vector_search(query="inflation outlook", days=7)
 
+# Filter by region
+mongo_vector_search(query="monetary policy", region="asia")
+
+# Filter by country
+mongo_vector_search(query="property market", country="china")
+
+# Multiple regions
+mongo_vector_search(query="interest rates", region=["us", "europe"])
+
 # Filter by source with date range
 mongo_vector_search(query="Fed rate cuts", source="gavekal", date_from="2025-01-01")
 
-# Search across all sources
-mongo_vector_search(query="China economy tariffs", source=["gavekal", "goldman_sachs"], limit=10)
+# Combined filters
+mongo_vector_search(query="tariffs", source="gavekal", region="asia", days=30)
 ```
 
 ---
@@ -1699,7 +1715,9 @@ mongo_vector_search(query="China economy tariffs", source=["gavekal", "goldman_s
 | "AI sector knowledge for real estate" | `AgentSkillSets` | `{ skill_set_id: "sector:real_estate" }` |
 | "Macro research articles on Vietnam" | `macro_research_articles` | `{ content: { $regex: "Vietnam", $options: "i" } }` |
 | "Find articles about Fed policy" | `mongo_vector_search` | `query="Fed rate policy", days=30` |
-| "Recent China economy research" | `mongo_vector_search` | `query="China economy", source="gavekal"` |
+| "Asia monetary policy research" | `mongo_vector_search` | `query="monetary policy", region="asia"` |
+| "China property market articles" | `mongo_vector_search` | `query="property market", country="china"` |
+| "US + Europe interest rates" | `mongo_vector_search` | `query="interest rates", region=["us", "europe"]` |
 
 ---
 

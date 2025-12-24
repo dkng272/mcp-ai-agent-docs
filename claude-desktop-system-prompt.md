@@ -55,6 +55,9 @@ The project includes linked documentation with clear reading order:
 | `mongo_find` | Query company models, RE projects |
 | `mongo_aggregate` | Complex aggregations |
 | `mongo_describe_collection` | Infer collection schema |
+| `mongo_vector_search` | Semantic search macro research (supports region/country filters) |
+
+**mongo_vector_search filters**: `source`, `region` (us/asia/europe/global), `country` (us/china/japan/india/uk/vietnam), `days`, `date_from/to`
 
 ### Python Executor
 | Tool | Use Case |
