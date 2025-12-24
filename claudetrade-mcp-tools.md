@@ -163,6 +163,8 @@ Semantic search over macro research articles using vector embeddings.
 query: "inflation outlook"           # Natural language search (required)
 limit: 5                             # Max results (default: 5, max: 20)
 source: "gavekal"                    # Filter: "gavekal", "goldman_sachs", or array of both
+region: "asia"                       # Filter: "us", "asia", "europe", "global", or array
+country: "china"                     # Filter: "us", "china", "japan", "india", "uk", "vietnam", or array
 days: 7                              # Get articles from last N days
 date_from: "2025-01-01"              # Start date (YYYY-MM-DD)
 date_to: "2025-12-31"                # End date (YYYY-MM-DD)
@@ -174,19 +176,29 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 - Gavekal Research (~1100 chunks) - Independent macro research
 - Goldman Sachs (~800 chunks) - Investment bank research (has series_name field)
 
+**Regions/Countries:**
+- Regions: `us`, `asia`, `europe`, `global`
+- Countries: `us`, `china`, `japan`, `india`, `uk`, `vietnam`
+
 **Examples:**
 ```python
 # Recent updates on inflation
 {"query": "inflation outlook", "days": 7}
+
+# Asia-focused monetary policy
+{"query": "monetary policy", "region": "asia"}
+
+# China property market
+{"query": "property market", "country": "china"}
+
+# US + Europe interest rates
+{"query": "interest rates", "region": ["us", "europe"]}
 
 # Last month's Fed coverage from Gavekal
 {"query": "Fed rate cuts", "days": 30, "source": "gavekal"}
 
 # Date range search
 {"query": "China economy", "date_from": "2025-10-01", "date_to": "2025-12-31"}
-
-# All sources
-{"query": "tariffs", "source": ["gavekal", "goldman_sachs"]}
 ```
 
 **Response:**
@@ -194,7 +206,7 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 {
   "success": true,
   "query": "inflation outlook",
-  "filters": { "source": "all", "date_from": "2025-12-16", "date_to": "2025-12-23", "days": 7 },
+  "filters": { "source": "all", "region": "all", "country": "all", "date_from": "2025-12-16", "date_to": "2025-12-23", "days": 7 },
   "deduplicated": true,
   "limit": 5,
   "min_score": 0.5,
@@ -204,12 +216,11 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
       "title": "Vietnam's Inflation Pressures",
       "source": "gavekal",
       "series_name": null,
-      "author": "Louis Gave",
-      "date": "20 Dec 2025",
       "date_iso": "2025-12-20",
+      "region": "asia",
+      "country": "vietnam",
       "content": "Article chunk text...",
       "summary": "Brief summary...",
-      "url": "https://research.gavekal.com/...",
       "chunk_index": 0,
       "total_chunks": 3,
       "score": 0.847
@@ -222,6 +233,8 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 |----------------|-------------|
 | `score` | Similarity to query (0-1, higher = more relevant) |
 | `date_iso` | Normalized date (YYYY-MM-DD) for sorting |
+| `region` | Geographic region (us, asia, europe, global) |
+| `country` | Specific country (us, china, japan, india, uk, vietnam) |
 | `series_name` | Goldman Sachs report series (e.g., "USA", "China", "Global Markets Daily") |
 | `chunk_index` / `total_chunks` | Which part of the article (long articles are split into chunks) |
 | `deduplicated` | If true, each result is a unique article (best-scoring chunk shown) |
@@ -231,9 +244,9 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 | Query Type | Tool | Example |
 |------------|------|---------|
 | **Topic/theme search** | `mongo_vector_search` | "Find articles about Fed rate policy" |
+| **Region/country focus** | `mongo_vector_search` | "Asia monetary policy articles" |
 | **Recent by source** | `mongo_find` | "Get 5 latest Goldman Sachs reports" |
-| **Filter by date** | `mongo_find` | "Gavekal articles from last week" |
-| **Filter by author** | `mongo_find` | "Articles by Louis Gave" |
+| **Filter by date only** | `mongo_find` | "Gavekal articles from last week" |
 
 ```python
 # Simple queries - use mongo_find on macro_research_articles
@@ -515,4 +528,4 @@ download_path: "~/Downloads/report.pdf"  # optional
 
 ---
 
-*Last updated: December 23, 2025*
+*Last updated: December 24, 2025*
