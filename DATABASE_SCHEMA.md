@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-12-24 (Added region/country filtering to mongo_vector_search)
+**Last Updated**: 2025-12-29 (Hybrid search: vector + BM25 with RRF fusion)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -1671,7 +1671,13 @@ mongo_find("macro_research_articles", { author: "Louis Gave" }, { title: 1, date
 }
 ```
 
-**Vector Search Tool**: Use `mongo_vector_search` instead of direct queries for semantic search.
+**Hybrid Search Tool**: Use `mongo_vector_search` for searching - supports three modes:
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| `hybrid` (default) | Vector + BM25 with RRF fusion | Most queries - balanced semantic + keyword |
+| `vector` | Semantic search only | Conceptual queries ("economic headwinds") |
+| `text` | BM25/keyword only | Exact terms, author names ("Louis Gave") |
 
 **Pre-filter Fields** (indexed for fast filtering):
 - `source`: "gavekal", "goldman_sachs"
@@ -1679,26 +1685,31 @@ mongo_find("macro_research_articles", { author: "Louis Gave" }, { title: 1, date
 - `country`: "us", "china", "japan", "india", "uk", "vietnam"
 - `date_iso`: YYYY-MM-DD format for date range filtering
 
-**Example Vector Search**:
+**Example Searches**:
 ```python
-# Semantic search for inflation-related articles
-mongo_vector_search(query="inflation outlook", days=7)
+# Hybrid search (default) - combines semantic + keyword
+mongo_vector_search(query="Fed rate decisions")
 
-# Filter by region
-mongo_vector_search(query="monetary policy", region="asia")
+# Adjust vector/text balance (default: 0.7 vector weight)
+mongo_vector_search(query="GDP growth inflation", vector_weight=0.5)
 
-# Filter by country
-mongo_vector_search(query="property market", country="china")
+# Vector-only (semantic search)
+mongo_vector_search(query="monetary policy implications", mode="vector")
 
-# Multiple regions
-mongo_vector_search(query="interest rates", region=["us", "europe"])
+# Text-only (BM25/keyword search)
+mongo_vector_search(query="Louis Gave China", mode="text")
 
-# Filter by source with date range
-mongo_vector_search(query="Fed rate cuts", source="gavekal", date_from="2025-01-01")
+# With filters
+mongo_vector_search(query="tariffs", region="asia", days=7)
 
 # Combined filters
-mongo_vector_search(query="tariffs", source="gavekal", region="asia", days=30)
+mongo_vector_search(query="property market", source="gavekal", country="china")
 ```
+
+**Hybrid Mode Response Fields**:
+- `hybrid_score`: RRF fusion score
+- `vector_rank` / `text_rank`: Rank in each search (null if not found)
+- `vector_score` / `text_score`: Raw scores from each search
 
 ---
 
@@ -1714,10 +1725,11 @@ mongo_vector_search(query="tariffs", source="gavekal", region="asia", days=30)
 | "Real estate transaction volume" | `MoCData` | `{}` sorted by year/quarter |
 | "AI sector knowledge for real estate" | `AgentSkillSets` | `{ skill_set_id: "sector:real_estate" }` |
 | "Macro research articles on Vietnam" | `macro_research_articles` | `{ content: { $regex: "Vietnam", $options: "i" } }` |
-| "Find articles about Fed policy" | `mongo_vector_search` | `query="Fed rate policy", days=30` |
+| "Find articles about Fed policy" | `mongo_vector_search` | `query="Fed rate policy"` (hybrid default) |
 | "Asia monetary policy research" | `mongo_vector_search` | `query="monetary policy", region="asia"` |
 | "China property market articles" | `mongo_vector_search` | `query="property market", country="china"` |
-| "US + Europe interest rates" | `mongo_vector_search` | `query="interest rates", region=["us", "europe"]` |
+| "Articles by Louis Gave" | `mongo_vector_search` | `query="Louis Gave", mode="text"` |
+| "Conceptual search - headwinds" | `mongo_vector_search` | `query="economic headwinds", mode="vector"` |
 
 ---
 

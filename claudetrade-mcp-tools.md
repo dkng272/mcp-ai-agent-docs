@@ -157,10 +157,12 @@ delete_many: false
 ```
 
 ### `mongo_vector_search`
-Semantic search over macro research articles using vector embeddings.
+Hybrid search over macro research articles combining semantic (vector) and keyword (BM25) search.
 
 ```python
 query: "inflation outlook"           # Natural language search (required)
+mode: "hybrid"                       # Search mode: "hybrid" (default), "vector", "text"
+vector_weight: 0.7                   # Weight for vector in hybrid mode (0-1, default: 0.7)
 limit: 5                             # Max results (default: 5, max: 20)
 source: "gavekal"                    # Filter: "gavekal", "goldman_sachs", or array of both
 region: "asia"                       # Filter: "us", "asia", "europe", "global", or array
@@ -168,13 +170,21 @@ country: "china"                     # Filter: "us", "china", "japan", "india", 
 days: 7                              # Get articles from last N days
 date_from: "2025-01-01"              # Start date (YYYY-MM-DD)
 date_to: "2025-12-31"                # End date (YYYY-MM-DD)
-deduplicate: true                    # Return unique articles only (default: true)
-min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.5)
+deduplicate: true                    # Return unique articles only in vector mode (default: true)
+min_score: 0.5                       # Minimum similarity score 0-1 for vector mode (default: 0.5)
 ```
 
+**Search Modes:**
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| `hybrid` (default) | Combines vector (semantic) + text (BM25) using RRF fusion | Most queries - balanced semantic + keyword matching |
+| `vector` | Semantic search only via embeddings | Conceptual queries like "economic headwinds in emerging markets" |
+| `text` | Keyword/BM25 search only | Exact terms, author names, specific phrases like "Louis Gave China" |
+
 **Sources:**
-- Gavekal Research (~1100 chunks) - Independent macro research
-- Goldman Sachs (~800 chunks) - Investment bank research (has series_name field)
+- Gavekal Research (~1100 articles) - Independent macro research
+- Goldman Sachs (~800 articles) - Investment bank research (has series_name field)
 
 **Regions/Countries:**
 - Regions: `us`, `asia`, `europe`, `global`
@@ -182,45 +192,73 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 
 **Examples:**
 ```python
-# Recent updates on inflation
-{"query": "inflation outlook", "days": 7}
+# Hybrid search (default) - combines semantic + keyword
+{"query": "Fed rate decisions", "mode": "hybrid"}
 
-# Asia-focused monetary policy
-{"query": "monetary policy", "region": "asia"}
+# Weighted hybrid - emphasize keywords more
+{"query": "inflation outlook", "vector_weight": 0.5}
 
-# China property market
-{"query": "property market", "country": "china"}
+# Vector-only (semantic search)
+{"query": "monetary policy implications", "mode": "vector"}
 
-# US + Europe interest rates
-{"query": "interest rates", "region": ["us", "europe"]}
+# Text-only (keyword/BM25 search) - for exact terms
+{"query": "Louis Gave China", "mode": "text"}
 
-# Last month's Fed coverage from Gavekal
-{"query": "Fed rate cuts", "days": 30, "source": "gavekal"}
+# Hybrid with filters
+{"query": "tariffs", "days": 7, "region": "asia"}
 
 # Date range search
 {"query": "China economy", "date_from": "2025-10-01", "date_to": "2025-12-31"}
+
+# Combined filters with weighted hybrid
+{"query": "property market", "source": "gavekal", "country": "china", "vector_weight": 0.6}
 ```
 
-**Response:**
+**Hybrid Mode Response:**
 ```json
 {
   "success": true,
+  "mode": "hybrid",
+  "query": "US gdp growth",
+  "filters": { "source": "all", "region": "all", "country": "all" },
+  "vector_weight": 0.7,
+  "result_count": 5,
+  "results": [
+    {
+      "title": "Macro Outlook 2026: Sturdy Growth, Stagnant Jobs",
+      "author": "John Smith",
+      "source": "gavekal",
+      "series_name": null,
+      "date_iso": "2025-12-18",
+      "region": "us",
+      "country": "us",
+      "content": "Full article text...",
+      "summary": "Brief summary...",
+      "url": "https://...",
+      "vector_rank": 12,
+      "text_rank": 7,
+      "vector_score": 0.72,
+      "text_score": 8.45,
+      "hybrid_score": 0.0234
+    }
+  ]
+}
+```
+
+**Vector-Only Mode Response:**
+```json
+{
+  "success": true,
+  "mode": "vector",
   "query": "inflation outlook",
-  "filters": { "source": "all", "region": "all", "country": "all", "date_from": "2025-12-16", "date_to": "2025-12-23", "days": 7 },
   "deduplicated": true,
-  "limit": 5,
-  "min_score": 0.5,
   "result_count": 5,
   "results": [
     {
       "title": "Vietnam's Inflation Pressures",
       "source": "gavekal",
-      "series_name": null,
       "date_iso": "2025-12-20",
-      "region": "asia",
-      "country": "vietnam",
       "content": "Article chunk text...",
-      "summary": "Brief summary...",
       "chunk_index": 0,
       "total_chunks": 3,
       "score": 0.847
@@ -231,13 +269,23 @@ min_score: 0.5                       # Minimum similarity score 0-1 (default: 0.
 
 | Response Field | Description |
 |----------------|-------------|
-| `score` | Similarity to query (0-1, higher = more relevant) |
+| `mode` | Search mode used: "hybrid", "vector", or "text" |
+| `hybrid_score` | RRF fusion score (hybrid mode only) |
+| `vector_rank` | Rank in vector search results (hybrid mode, null if not found) |
+| `text_rank` | Rank in text search results (hybrid mode, null if not found) |
+| `vector_score` | Cosine similarity score from vector search |
+| `text_score` | BM25 score from text search |
+| `score` | Similarity score (vector mode only) |
 | `date_iso` | Normalized date (YYYY-MM-DD) for sorting |
 | `region` | Geographic region (us, asia, europe, global) |
 | `country` | Specific country (us, china, japan, india, uk, vietnam) |
 | `series_name` | Goldman Sachs report series (e.g., "USA", "China", "Global Markets Daily") |
-| `chunk_index` / `total_chunks` | Which part of the article (long articles are split into chunks) |
-| `deduplicated` | If true, each result is a unique article (best-scoring chunk shown) |
+| `chunk_index` / `total_chunks` | Which part of article (vector mode only, articles split into chunks) |
+
+**Why Hybrid Search?**
+- **Semantic understanding**: Vector search captures meaning ("Fed tightening" matches "interest rate hikes")
+- **Keyword precision**: BM25 catches exact terms (author names, specific acronyms like "GDP")
+- **RRF fusion**: Reciprocal Rank Fusion combines both rankings, boosting articles that score well in both
 
 **When to use `mongo_vector_search` vs `mongo_find`:**
 
@@ -509,7 +557,7 @@ download_path: "~/Downloads/report.pdf"  # optional
 | SQL | `mssql_export_data` | Export large datasets to CSV (server path) |
 | MongoDB | `mongo_find` | Query company models, RE projects |
 | MongoDB | `mongo_aggregate` | Complex aggregations |
-| MongoDB | `mongo_vector_search` | Semantic search macro research articles |
+| MongoDB | `mongo_vector_search` | Hybrid search (vector + BM25) macro research articles |
 | Python | `execute_python` | Combined SQL+MongoDB analysis |
 | Python | `save_csv(..., downloadable=True)` | Export CSV with download URL |
 | Python | `save_figure(fig, filename)` | Export chart with download URL |
@@ -528,4 +576,4 @@ download_path: "~/Downloads/report.pdf"  # optional
 
 ---
 
-*Last updated: December 24, 2025*
+*Last updated: December 29, 2025*
