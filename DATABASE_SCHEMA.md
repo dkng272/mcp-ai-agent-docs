@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2025-12-29 (Hybrid search: vector + BM25 with RRF fusion)
+**Last Updated**: 2026-01-08 (Forecast table: merged DC internal + broker consensus; removed Forecast_Consensus)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -23,7 +23,7 @@
 - **Azure SQL**: MCP Server (`mcp__MicrosoftSQL__*` tools)
   - Database: `dclab`
   - Server: `sqls-dclab.database.windows.net`
-  - Tables: 44 (financial data, sector operations, commodities, market intelligence, banking rates, bonds, analyst comments, portfolios)
+  - Tables: 43 (financial data, sector operations, commodities, market intelligence, banking rates, bonds, analyst comments, portfolios)
 
 - **MongoDB**: MCP Server (`mcp__claudetrade-mcp__mongo_*` tools)
   - Database: `IRIS`
@@ -107,27 +107,31 @@ YoY          float      -- Year-over-year change
 ---
 
 #### `Forecast`
-**Purpose**: Financial forecasts from the user's firm only (internal forecasts)
-
-**⚠️ IMPORTANT**: This table contains ONLY forecasts made by the user's firm. Forecasts from other brokers/firms are stored in the `Forecast_Consensus` table.
+**Purpose**: Unified forecast table containing both Dragon Capital (DC) internal forecasts and external broker consensus forecasts
 
 **Schema**:
 ```sql
 TICKER        nvarchar      -- Stock symbol
-KEYCODE       nvarchar      -- Metric identifier (standard metrics only)
+KEYCODE       nvarchar      -- Metric identifier (DC internal OR broker-specific)
 KEYCODENAME   nvarchar      -- Metric name
-ORGANCODE     nvarchar      -- Organization code (user's firm)
+ORGANCODE     nvarchar      -- Organization code
 DATE          nvarchar      -- Forecast period (e.g., "2025", "2026")
 VALUE         float         -- Forecast value
 RATING        nvarchar      -- Analyst rating (BUY, SELL, etc.)
 FORECASTDATE  nvarchar      -- When the forecast was made
-_content_hash nvarchar      -- Data integrity hash
 ```
 
-**KEYCODE Format**:
-- **Standard financial metrics only**: Same as FA_Quarterly/FA_Annual
-- Examples: `NPATMI`, `Net_Revenue`, `EBIT`, `EBITDA`, `Total_Asset`, `ROE`, `ROA`
-- NO broker-specific format (e.g., no `MBKE.NPATMI` - those are in Forecast_Consensus)
+**KEYCODE Format** (Two Types):
+
+| Type | Format | Example | Description |
+|------|--------|---------|-------------|
+| **DC Internal** | `{Metric}` | `NPATMI`, `Target_Price` | Dragon Capital's own forecasts (no prefix) |
+| **Broker Consensus** | `{Broker}.{Metric}` | `HSC.NPATMI`, `MBS.Target_Price` | External broker forecasts |
+
+**Broker Codes**: ACBS, BSC, BVS, BVSC, FPTS, HSC, MBKE, MBS, PHS, SSI, VCBS, VCSC, VDSC, VND, VPBS
+- Also includes `Guidance.NPATMI` for company guidance
+
+**Common Metrics**: `NPATMI`, `Target_Price`, `Net_Revenue`, `EBIT`, `EBITDA`, `ROE`, `ROA`
 
 **RATING Values**:
 - `BUY` - Strong buy recommendation
@@ -137,39 +141,29 @@ _content_hash nvarchar      -- Data integrity hash
 - `SELL` - Sell recommendation
 - `AVOID` - Avoid investment
 - `WATCH` - Watch list
+- `NON-RATED` - No rating assigned
 
-**Example**: `SELECT TICKER, DATE, VALUE, RATING FROM Forecast WHERE KEYCODE = 'NPATMI' AND DATE = '2025'`
-
----
-
-#### `Forecast_Consensus`
-**Purpose**: Forecasts from other brokers/firms (market consensus)
-
-**⚠️ IMPORTANT**: This table contains forecasts from OTHER brokers and firms (not the user's firm). The user's own forecasts are in the `Forecast` table.
-
-**Schema**:
+**Example Queries**:
 ```sql
-TICKER        varchar       -- Stock symbol
-KEYCODE       varchar       -- Metric identifier (broker-specific format)
-KEYCODENAME   varchar       -- Metric name
-ORGANCODE     varchar       -- Broker/organization code
-DATE          varchar       -- Forecast period (e.g., "2025", "2026")
-VALUE         float         -- Forecast value
-RATING        varchar       -- Analyst rating
-FORECASTDATE  varchar       -- When forecast was made
+-- DC internal forecasts only (no broker prefix)
+SELECT TICKER, DATE, VALUE, RATING
+FROM Forecast
+WHERE KEYCODE = 'NPATMI' AND DATE = '2025'
+
+-- All broker NPATMI forecasts for a ticker
+SELECT TICKER, KEYCODE, DATE, VALUE, FORECASTDATE
+FROM Forecast
+WHERE TICKER = 'HPG' AND KEYCODE LIKE '%.NPATMI'
+ORDER BY FORECASTDATE DESC
+
+-- Compare DC vs specific broker forecast
+SELECT KEYCODE, DATE, VALUE
+FROM Forecast
+WHERE TICKER = 'VCB' AND DATE = '2025'
+  AND KEYCODE IN ('NPATMI', 'HSC.NPATMI', 'MBS.NPATMI')
 ```
 
-**KEYCODE Format**:
-- **Broker-specific forecasts**: `{BrokerCode}.{Metric}`
-- Examples: `MBKE.NPATMI`, `HSC.Net_Revenue`, `SSI.EBIT`, `VCBS.ROE`
-- Common broker codes: ACBS, BSC, BVS, BVSC, FPTS, HSC, MBKE, MBS, PHS, SSI, VCBS, VCSC, VDSC, VND, VPBS
-
-**Use Cases**:
-- Compare market consensus to firm's internal forecasts
-- Analyze broker coverage and sentiment
-- Track forecast changes over time from specific brokers
-
-**Example**: `SELECT TICKER, KEYCODE, DATE, VALUE FROM Forecast_Consensus WHERE KEYCODE LIKE '%.NPATMI' AND DATE = '2025'`
+**Data Coverage**: ~189K records
 
 ---
 
@@ -1083,9 +1077,10 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | "What sector is HPG in?" | `Sector_Map` | `Ticker`, `Sector`, `L1`, `L2` |
 | "Commodity price history" | `Commodity` | `Ticker`, `Sector`, `Date`, `Price` |
 | "Which table has a commodity?" | `Ticker_Reference` | `Name`, `Sector` |
-| "Analyst forecasts for VNM" | `Forecast` | `TICKER`, `KEYCODE`, `VALUE`, `FORECASTDATE` |
-| "Target price for stock" | `Forecast` (KEYCODE LIKE '%.Target_Price') | `TICKER`, `VALUE`, `RATING` |
-| "Consensus forecasts" | `Forecast_Consensus` | `TICKER`, `KEYCODE`, `VALUE` |
+| "DC internal forecasts for VNM" | `Forecast` (KEYCODE = 'NPATMI') | `TICKER`, `KEYCODE`, `VALUE`, `RATING` |
+| "Broker consensus forecasts" | `Forecast` (KEYCODE LIKE '%.NPATMI') | `TICKER`, `KEYCODE`, `VALUE`, `FORECASTDATE` |
+| "Target price (DC internal)" | `Forecast` (KEYCODE = 'Target_Price') | `TICKER`, `VALUE`, `RATING` |
+| "Target price (broker)" | `Forecast` (KEYCODE LIKE '%.Target_Price') | `TICKER`, `KEYCODE`, `VALUE` |
 | "Steel production/consumption" | `Steel_data` | `Company Name`, `ProductCat`, `Classification`, `Value` |
 | "Airline passengers/market share" | `Aviation_Operations` | `Airline`, `Metric_type`, `Traffic_type`, `Metric_value` |
 | "Airline ticket prices" | `Aviation_Airfare` | `Airline`, `Route`, `Fare`, `Date` |
@@ -1109,8 +1104,10 @@ WHERE VNI = 'Y' AND McapClassification = 'Large-cap'
 | Data Need | Table |
 |-----------|-------|
 | Stock financials | `FA_Quarterly`, `FA_Annual` |
-| Analyst forecasts | `Forecast`, `Forecast_Consensus`, `Forecast_history` |
-| Target prices & ratings | `Forecast` (broker-specific KEYCODE) |
+| DC internal forecasts | `Forecast` (KEYCODE without prefix) |
+| Broker consensus forecasts | `Forecast` (KEYCODE with broker prefix, e.g., `HSC.NPATMI`) |
+| Forecast history tracking | `Forecast_history` |
+| Target prices & ratings | `Forecast` (KEYCODE = `Target_Price` or `{Broker}.Target_Price`) |
 | Commodity prices | `Commodity` (filter by Sector) |
 | Commodity price lookup | `Ticker_Reference` (commodities only!) |
 | Stock sector mapping | `Sector_Map` |

@@ -74,8 +74,7 @@ includeHeaders: true
 | `FA_Annual` | Annual financial statements |
 | `Sector_Map` | Ticker to sector mapping (L1, L2, L3 tiers) |
 | `Ticker_Reference` | Ticker metadata and company info |
-| `Forecast` | Analyst earnings forecasts |
-| `Forecast_Consensus` | Consensus estimates |
+| `Forecast` | DC internal forecasts (no prefix) + broker consensus (e.g., `HSC.NPATMI`) |
 | `BankingMetrics` | Bank-specific KPIs |
 | `BrokerageMetrics` | Brokerage company KPIs |
 | `Power_Company_Operations` | Power sector operational data |

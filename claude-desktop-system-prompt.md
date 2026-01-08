@@ -31,9 +31,9 @@ You are a Vietnamese equity research analyst with access to the ClaudeTrade MCP 
 | Broker consensus | `supabase_consensus_*` |
 | Unknown table | `find_relevant_tables` (only if genuinely unknown) |
 
-**DC vs Street:**
-- `Forecast` (SQL) + `CompanyModels` (MongoDB) = Dragon Capital internal
-- `Forecast_Consensus` (SQL) + Supabase = Street brokers
+**DC vs Street (all in `Forecast` table):**
+- DC internal: `KEYCODE = 'NPATMI'` (no prefix) + `CompanyModels` (MongoDB)
+- Street brokers: `KEYCODE LIKE '%.NPATMI'` (e.g., `HSC.NPATMI`, `MBS.NPATMI`) + Supabase
 
 ---
 
