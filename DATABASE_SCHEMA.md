@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-01-08 (Forecast table: merged DC internal + broker consensus; removed Forecast_Consensus)
+**Last Updated**: 2026-01-08 (Added 4 MongoDB collections: CBREMarketData, O&GProjectsData, commodity_news, VPAContainerData)
 **AI Agent Guide**: This document provides table schemas and simple query examples. For complex query patterns, see **QUERY_BEST_PRACTICES.md**.
 
 ---
@@ -27,7 +27,7 @@
 
 - **MongoDB**: MCP Server (`mcp__claudetrade-mcp__mongo_*` tools)
   - Database: `IRIS`
-  - Collections: 8 (analyst models, real estate projects, interbank updates, lending rates, MoC data, AI knowledge base, macro research articles, vector embeddings)
+  - Collections: 12 (analyst models, real estate projects, interbank updates, lending rates, MoC data, AI knowledge base, macro research articles, vector embeddings, CBRE market data, O&G projects, commodity news, VPA container data)
 
 ### Key Concepts
 - **Tickers**: Vietnamese stock symbols (e.g., HPG, MWG, VNM)
@@ -1710,6 +1710,400 @@ mongo_vector_search(query="property market", source="gavekal", country="china")
 
 ---
 
+### `CBREMarketData`
+**Purpose**: CBRE quarterly real estate market data for Vietnam (Ho Chi Minh City, Hanoi) covering residential, office, retail, industrial, and serviced apartment segments
+
+**Document Count**: 56
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  city: string,                  // "Ho Chi Minh City", "Ha Noi"
+  period: string,                // "1Q19", "3Q24"
+  year: number,                  // 2019, 2024
+  quarter: number,               // 1, 2, 3, 4
+  source: string,                // "CBRE"
+  last_updated: Date,
+  data_source: string,           // Report source
+
+  // Residential Supply & Demand
+  supply: {
+    units_launched: {
+      condominium: number,       // Units launched
+      landed_property: number,
+      office_nla: number         // Office NLA (sqm)
+    },
+    units_sold: {
+      condominium: number,
+      landed_property: number,
+      qoq_change: number,
+      yoy_change: number
+    },
+    absorption_rate: {
+      condominium: number,       // % absorbed
+      low_rise: number,
+      condominium_new_launch: number
+    }
+  },
+
+  // Condominium Pricing (USD/sqm)
+  condo_price: {
+    primary: {
+      affordable: number,        // < $1,500/sqm
+      mid_end: number,           // $1,500-2,500/sqm
+      high_end: number,          // $2,500-5,000/sqm
+      luxury: number,            // $5,000-10,000/sqm
+      ultra_luxury: number,      // > $10,000/sqm
+      overall: number,
+      qoq_change: number,
+      yoy_change: number
+    },
+    secondary: { ... }           // Same structure
+  },
+
+  // Landed Property Pricing (USD/sqm)
+  landed_price: {
+    primary: {
+      villa: number,
+      townhouse: number,
+      shophouse: number,
+      overall: number,
+      qoq_change: number,
+      yoy_change: number
+    },
+    secondary: { ... }
+  },
+
+  // Office Market
+  office: {
+    total_nla_sqm: number,       // Total NLA
+    net_absorption_sqm: number,
+    grade_a: {
+      vacancy_rate: number,
+      vacancy_qoq_change_ppts: number,
+      vacancy_yoy_change_ppts: number,
+      rent_usd_sqm_month: number,
+      rent_qoq_change: number,
+      rent_yoy_change: number
+    },
+    grade_b: { ... },            // Same structure
+    new_supply_sqm: number,
+    new_buildings: [string],
+    demand_sectors: {
+      banking_finance_insurance: number,
+      it: number,
+      manufacturing: number
+    }
+  },
+
+  // Retail Market
+  retail: {
+    total_nla_sqm: number,
+    net_absorption_sqm: number,
+    overall_vacancy_rate: number,
+    cbd: {
+      vacancy_rate: number,
+      rent_usd_sqm_month: number,
+      rent_qoq_change: number,
+      rent_yoy_change: number
+    },
+    non_cbd: { ... },
+    new_supply_sqm: number,
+    upcoming_supply: [string],
+    trends: [string]
+  },
+
+  // Industrial Market
+  industrial: {
+    region: string,              // "South", "North"
+    net_absorption_ha: number,
+    occupancy_rate: number,
+    asking_rent_usd_sqm_term: number,
+    rent_qoq_change: number,
+    rent_yoy_change: number,
+    rbw: {                       // Ready-Built Warehouse
+      occupancy_rate: number,
+      rent_usd_sqm_month: number,
+      rent_yoy_change: number
+    },
+    rbf: { ... },                // Ready-Built Factory
+    markets: [string],
+    notable_projects: [string]
+  },
+
+  // Serviced Apartment
+  serviced_apartment: {
+    total_supply_units: number,
+    overall_vacancy_rate: number,
+    grade_a: {
+      vacancy_rate: number,
+      rent_usd_sqm_month: number,
+      rent_qoq_change: number,
+      rent_yoy_change: number
+    },
+    grade_b: { ... },
+    pipeline: {
+      by_end_2025: string,
+      "2026_2027": string
+    }
+  }
+}
+```
+
+**Example Queries**:
+```javascript
+// Get latest HCMC residential data
+mongo_find("CBREMarketData", { city: "Ho Chi Minh City" }, {}, { year: -1, quarter: -1 }, 1)
+
+// Get condo price trends
+mongo_find("CBREMarketData", { city: "Ho Chi Minh City" }, { period: 1, "condo_price.primary": 1 }, { year: -1, quarter: -1 })
+
+// Get office vacancy rates
+mongo_find("CBREMarketData", {}, { city: 1, period: 1, "office.grade_a.vacancy_rate": 1, "office.grade_a.rent_usd_sqm_month": 1 }, { year: -1, quarter: -1 })
+```
+
+---
+
+### `O&GProjectsData`
+**Purpose**: Vietnam Oil & Gas and LNG project data including upstream projects, LNG terminals, and production forecasts
+
+**Document Count**: 51
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  data: {
+    // Upstream Projects
+    Block: string,               // "52/97; 48/95", "117-119"
+    Project: string,             // "Block B", "Blue Whale"
+    Type: string,                // "Gas", "Oil"
+    "Capex (USDbn)": number,     // Capital expenditure
+    "Oil/Gas Reserves": string,  // "107 bcm", "150 bcm"
+    Investors: string,           // "PVN (42.9%), PVEP (26.8%), ..."
+    Status: string,              // Project status/update
+    "Expected First Gas/Oil": number,  // COD year
+    Location: string,            // "Malay Tho Chu Basin"
+    Date: Date,                  // Data date
+    "Rig Count": number,         // Active rigs
+
+    // Production Forecasts
+    years: {
+      "2020": number,
+      "2021": number,
+      // ... through 2027E
+    },
+
+    // LNG Terminals
+    Terminal: string,            // Terminal name
+    Investor: string,
+    "Investment Capital": string,
+    "Capacity (MMTPA)": string,
+    COD: string,
+    "Power Plants Supplied": string
+  },
+  metadata: {
+    data_type: string,           // "O&G_LNG_Projects", "LNG_Terminals"
+    sheet_name: string,
+    source_file: string,
+    upload_date: Date
+  }
+}
+```
+
+**Key Projects**:
+- **Block B** - PVN/PVEP/PTTEP gas project, $5.2bn capex, COD 2028
+- **Blue Whale** - ExxonMobil/PVN project, $4.6bn capex, 150 bcm reserves
+- **Ca Voi Xanh** - Offshore gas development
+- **LNG Terminals** - Thi Vai, Son My, Hai Lang
+
+**Example Queries**:
+```javascript
+// Get all upstream projects
+mongo_find("O&GProjectsData", { "metadata.data_type": "O&G_LNG_Projects" })
+
+// Get LNG terminal data
+mongo_find("O&GProjectsData", { "metadata.data_type": "LNG_Terminals" })
+
+// Get projects by investor
+mongo_find("O&GProjectsData", { "data.Investors": { $regex: "PVN", $options: "i" } })
+```
+
+---
+
+### `commodity_news`
+**Purpose**: AI-generated commodity news summaries with price direction and event timelines for market intelligence
+
+**Document Count**: 322
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  commodity_group: string,       // "Crude Oil", "Aluminum", "Iron Ore", "Steel"
+  summary: string,               // AI-generated summary of price drivers
+  direction: string,             // "bullish", "bearish", "both"
+  timeline: [
+    {
+      date: string,              // "2025-10-23"
+      event: string              // Event description with price impact
+    }
+  ],
+  search_date: string,           // When news was searched
+  date_created: string,          // Document creation timestamp
+  search_trigger: string,        // "manual", "scheduled"
+  cooldown_until: string,        // Next search date
+  price_change_5d: number        // 5-day price change (optional)
+}
+```
+
+**Commodity Groups**: Crude Oil, Aluminum, Iron Ore, Steel, Copper, Coal, Natural Gas, etc.
+
+**Example Queries**:
+```javascript
+// Get latest commodity news
+mongo_find("commodity_news", {}, { commodity_group: 1, summary: 1, direction: 1, search_date: 1 }, { search_date: -1 }, 10)
+
+// Get bullish commodities
+mongo_find("commodity_news", { direction: "bullish" }, { commodity_group: 1, summary: 1 })
+
+// Get oil news with timeline
+mongo_find("commodity_news", { commodity_group: "Crude Oil" }, {}, { search_date: -1 }, 5)
+```
+
+---
+
+### `VPAContainerData`
+**Purpose**: Vietnam Ports Association (VPA) monthly container throughput data by region, company, and port (TEU volumes)
+
+**Document Count**: 10
+
+**Schema**:
+```javascript
+{
+  _id: ObjectId,
+  period: string,                // "2025-01"
+  year: number,                  // 2025
+  month: number,                 // 1-12
+
+  // Northern Region
+  north: {
+    total_teu: number,           // Regional total TEUs
+    companies: {
+      PHP: {                     // Hai Phong Port
+        total_teu: number,
+        ports: {
+          hai_phong_chuave: number,
+          dinh_vu: number
+        }
+      },
+      SNP: {                     // Saigon Newport (North)
+        total_teu: number,
+        ports: {
+          hict: number,          // Hai Phong International Container Terminal
+          tan_cang_128_hp: number
+        }
+      },
+      VSC: {                     // Vietnam Container Shipping
+        total_teu: number,
+        ports: {
+          green_port: number,
+          vip_green_port: number,
+          nam_hai_dinh_vu: number
+        }
+      },
+      GMD: {                     // Gemadept
+        total_teu: number,
+        ports: { nam_dinh_vu: number }
+      },
+      PVS: {                     // PetroVietnam Technical Services
+        total_teu: number,
+        ports: { ptsc_dinh_vu: number }
+      }
+    }
+  },
+
+  // Central Region
+  central: {
+    total_teu: number,
+    companies: {
+      CDN: {                     // Cang Da Nang
+        total_teu: number,
+        ports: { da_nang: number }
+      },
+      OTHER: { ... }
+    }
+  },
+
+  // Southern Region
+  south: {
+    total_teu: number,
+    companies: {
+      GMD: {                     // Gemadept (South)
+        total_teu: number,
+        ports: {
+          gemalink: number,      // Deep-water terminal
+          binh_duong: number,
+          phuoc_long_icd: number
+        }
+      },
+      SNP: {                     // Saigon Newport (South)
+        total_teu: number,
+        ports: {
+          tan_cang_cat_lai: number,     // Largest port
+          tan_ca_ng_tcit: number,
+          tan_cang_hiep_phuoc: number,
+          tctt: number
+        }
+      },
+      SGP: {                     // Saigon Port
+        total_teu: number,
+        ports: {
+          cang_sai_gon: number,
+          ben_nghe: number,
+          itc_corp: number,
+          ssit: number
+        }
+      },
+      PDN: { ... },              // Dong Nai Port
+      MVN: { ... },              // VIMC (cmit)
+      FLDC: { ... },             // VICT
+      PAP: { ... }               // Phuoc An Port
+    }
+  },
+
+  national_total: number,        // Total Vietnam TEUs
+  source_file: string,
+  last_updated: Date
+}
+```
+
+**Key Companies (Tickers)**:
+- **SNP** (Saigon Newport) - Largest operator, Cat Lai terminal
+- **GMD** (Gemadept) - Gemalink deep-water terminal
+- **PHP** (Hai Phong Port) - Northern hub
+- **VSC** (Vietnam Container Shipping) - Green Port terminals
+- **SGP** (Saigon Port) - Southern terminals
+- **CDN** (Cang Da Nang) - Central hub
+
+**Example Queries**:
+```javascript
+// Get latest monthly data
+mongo_find("VPAContainerData", {}, {}, { year: -1, month: -1 }, 1)
+
+// Get 2025 throughput trends
+mongo_find("VPAContainerData", { year: 2025 }, { period: 1, national_total: 1, "north.total_teu": 1, "south.total_teu": 1 }, { month: 1 })
+
+// Get Cat Lai volumes
+mongo_aggregate("VPAContainerData", [
+  { $project: { period: 1, cat_lai: "$south.companies.SNP.ports.tan_cang_cat_lai" } },
+  { $sort: { period: -1 } }
+])
+```
+
+---
+
 ## MongoDB Quick Reference
 
 | Question | Collection/Tool | Query |
@@ -1727,6 +2121,16 @@ mongo_vector_search(query="property market", source="gavekal", country="china")
 | "China property market articles" | `mongo_vector_search` | `query="property market", country="china"` |
 | "Articles by Louis Gave" | `mongo_vector_search` | `query="Louis Gave", mode="text"` |
 | "Conceptual search - headwinds" | `mongo_vector_search` | `query="economic headwinds", mode="vector"` |
+| "CBRE condo prices HCMC" | `CBREMarketData` | `{ city: "Ho Chi Minh City" }` sorted by year/quarter |
+| "Office vacancy rates" | `CBREMarketData` | `{ "office.grade_a.vacancy_rate": 1 }` |
+| "Industrial rent trends" | `CBREMarketData` | `{ "industrial.asking_rent_usd_sqm_term": 1 }` |
+| "Vietnam O&G projects" | `O&GProjectsData` | `{ "metadata.data_type": "O&G_LNG_Projects" }` |
+| "LNG terminal data" | `O&GProjectsData` | `{ "metadata.data_type": "LNG_Terminals" }` |
+| "Commodity news - Steel" | `commodity_news` | `{ commodity_group: "Steel" }` |
+| "Bullish commodities" | `commodity_news` | `{ direction: "bullish" }` |
+| "Port container throughput" | `VPAContainerData` | `{}` sorted by year/month |
+| "Cat Lai port volumes" | `VPAContainerData` | `{ "south.companies.SNP.ports.tan_cang_cat_lai": 1 }` |
+| "GMD port volumes" | `VPAContainerData` | `{ "north.companies.GMD": 1, "south.companies.GMD": 1 }` |
 
 ---
 
