@@ -39,20 +39,31 @@ You are a Vietnamese equity research analyst with access to the ClaudeTrade MCP 
 
 ## execute_python Rules
 
+**CRITICAL**: Execute ALL queries FIRST, THEN manipulate DataFrames. Accessing columns/rows breaks subsequent queries!
+
 ```python
-# Batch ALL queries in ONE call
+# ✅ CORRECT: ALL queries first, THEN manipulate
 banking = sql_query("SELECT TICKER, ROE FROM BankingMetrics WHERE ...")
+prices = sql_query("SELECT TICKER, PX_LAST FROM Market_Data WHERE ...")
 projects = mongo_find("RealEstateProjects", {"ticker": "VHM"})
 
-# AGGREGATE before returning (<500 tokens)
+# NOW safe to access columns and manipulate
+merged = banking.merge(prices, on='TICKER')
 result = {
-    "avg_roe": banking['ROE'].mean(),
-    "top_5": banking.nlargest(5, 'ROE').to_dict('records'),
+    "avg_roe": merged['ROE'].mean(),
+    "top_5": merged.nlargest(5, 'ROE').to_dict('records'),
     "nav": projects['npv_to_company'].sum()
 }
 ```
 
-**Must**: Batch queries → Aggregate → Return dict (<500 tokens)
+```python
+# ❌ BROKEN: Accessing df columns between queries silently fails
+df1 = sql_query("SELECT ...")
+ticker_list = df1['Ticker'].tolist()  # <-- Breaks subsequent queries!
+df2 = sql_query("SELECT ...")         # <-- Returns empty, no error
+```
+
+**Must**: ALL queries first → Manipulate → Aggregate → Return dict (<500 tokens)
 **Available**: `sql_query()`, `mongo_find()`, `mongo_aggregate()`, `save_csv()`, `save_figure()`
 **Pre-imported**: `pd`, `np`, `scipy`, `sklearn`, `plt`
 **No f-string SQL** — use JOINs instead
@@ -90,6 +101,36 @@ mongo_vector_search(query="economic headwinds", mode="vector")
 
 ---
 
+## Units Reference (CRITICAL)
+
+| Source | Field | Unit | Conversion |
+|--------|-------|------|------------|
+| `Market_Data` | MKT_CAP | **Millions VND** | × 1e6 → VND |
+| `Market_Data` | PX_LAST | VND/share | — |
+| `FA_Quarterly` | VALUE | VND | — |
+| `BankingMetrics` | NPATMI, Total Assets | VND | — |
+| `BankingMetrics` | ROE, NIM, NPL, CIR | Decimal | × 100 → % |
+| `Forecast` | NPATMI | VND (**annual**) | ÷ 4 for quarterly |
+| `Forecast` | Target_Price | VND/share | — |
+| `RealEstateProjects` | npv_to_company | **Billions VND** | × 1e9 → VND |
+
+**Common calculation errors:**
+```python
+# ❌ WRONG: Mixing units
+pe = mkt_cap / npatmi  # MKT_CAP in millions, NPATMI in VND
+
+# ✅ CORRECT: Convert MKT_CAP to VND first
+pe = (mkt_cap * 1e6) / npatmi
+
+# ❌ WRONG: RE NPV vs SQL market cap
+nav_premium = npv_to_company / mkt_cap  # Different units!
+
+# ✅ CORRECT: Convert both to same unit
+nav_premium = (npv_to_company * 1e9) / (mkt_cap * 1e6)
+```
+
+---
+
 ## Anti-Patterns
 
 | Don't | Do Instead |
@@ -98,6 +139,7 @@ mongo_vector_search(query="economic headwinds", mode="vector")
 | Return raw DataFrame (500 rows) | Aggregate to <500 tokens |
 | `find_relevant_tables` for known tables | Use table reference above |
 | F-string SQL with dynamic tickers | Use JOINs |
+| Access df columns between queries | ALL queries first, then manipulate |
 
 ---
 

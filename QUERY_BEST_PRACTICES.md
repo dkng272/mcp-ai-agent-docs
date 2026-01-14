@@ -177,8 +177,66 @@ GROUP BY fq.TICKER
 ## Key Findings
 - ✅ SQL JOINs in query() work excellently
 - ✅ pandas aggregations (groupby, rolling, pivot) work perfectly
+- ✅ Mixed SQL + MongoDB in same call works
+- ✅ Large datasets (160k+ rows) handled efficiently
+- ✅ `save_csv()` and `save_figure()` work reliably
 - ❌ Dynamic SQL with f-strings fails (use JOINs instead)
 - ❌ Returning raw DataFrames wastes context
+- ⚠️ **CRITICAL BUG**: DataFrame column/row access breaks subsequent queries (see below)
+
+---
+
+## ⚠️ CRITICAL BUG: Query Execution Order
+
+**Problem**: Accessing DataFrame columns or rows BREAKS subsequent `sql_query()` calls. The query silently returns empty results with no error.
+
+```python
+# ❌ BROKEN - second query silently fails
+df1 = sql_query("SELECT Ticker FROM Sector_Map WHERE L2 = 'Banking'")
+ticker_list = df1['Ticker'].tolist()  # <-- Accessing column breaks subsequent queries
+df2 = sql_query("SELECT * FROM Market_Data")  # <-- Returns empty! No error raised
+
+# These operations ALL break subsequent queries:
+# - df['column']           (column access)
+# - df['column'].tolist()  (to list)
+# - df['column'].values    (to numpy)
+# - df['column'].unique()  (unique values)
+# - df.iloc[0]             (row access)
+
+# BUT these are SAFE:
+# - len(df)                (row count)
+# - df.columns             (column names)
+```
+
+### Workaround 1: ALL Queries First, THEN Manipulate (Recommended)
+
+```python
+# ✅ WORKS - Execute ALL queries upfront before any DataFrame manipulation
+df_sectors = sql_query("SELECT Ticker FROM Sector_Map WHERE L2 = 'Banking'")
+df_prices = sql_query("SELECT TICKER, PX_LAST FROM Market_Data WHERE TRADE_DATE = '2025-01-13'")
+df_banking = sql_query("SELECT TICKER, ROE FROM BankingMetrics WHERE YEARREPORT=2024")
+
+# NOW safe to manipulate DataFrames
+ticker_list = df_sectors['Ticker'].tolist()
+filtered = df_prices[df_prices['TICKER'].isin(ticker_list)]
+merged = filtered.merge(df_banking, on='TICKER')
+result = {"data": merged.to_dict('records')}
+```
+
+### Workaround 2: Use SQL JOINs (BEST - Avoids Problem Entirely)
+
+```python
+# ✅ BEST - Single query with JOINs, no dynamic SQL needed
+df = sql_query("""
+    SELECT s.Ticker, m.PX_LAST, b.ROE
+    FROM Sector_Map s
+    LEFT JOIN Market_Data m ON s.Ticker = m.TICKER AND m.TRADE_DATE = '2025-01-13'
+    LEFT JOIN BankingMetrics b ON s.Ticker = b.TICKER AND b.YEARREPORT = 2024
+    WHERE s.L2 = 'Banking'
+""")
+# Manipulate freely after single query completes
+result = df.nlargest(5, 'ROE').to_dict('records')
+```
 
 ---
 
@@ -313,6 +371,61 @@ result = {'data': pivot.reset_index().to_dict('records')}
 
 ---
 
+## Units Reference (CRITICAL)
+
+Different tables use different units - **always convert before calculations!**
+
+| Source | Field | Unit | Example |
+|--------|-------|------|---------|
+| `Market_Data` | MKT_CAP | **Millions VND** | 513,637,487 = 513.6T |
+| `Market_Data` | PX_LAST | VND/share | 61,026 |
+| `FA_Quarterly` | VALUE | VND | 8.57T (quarterly) |
+| `BankingMetrics` | NPATMI, Total Assets | VND | 8.57T |
+| `BankingMetrics` | ROE, NIM, NPL, CIR | Decimal | 0.177 = 17.7% |
+| `Forecast` | NPATMI | VND (**annual**) | 35.6T |
+| `Forecast` | Target_Price | VND/share | 69,300 |
+| `RealEstateProjects` (MongoDB) | npv_to_company | **Billions VND** | 33,284 = 33.3T |
+
+### Common Unit Conversion Errors
+
+```python
+# ❌ WRONG: P/E with mismatched units
+pe = mkt_cap / npatmi  # MKT_CAP in millions, NPATMI in VND!
+
+# ✅ CORRECT: Convert MKT_CAP to VND
+pe = (mkt_cap * 1e6) / npatmi
+
+# ❌ WRONG: NAV premium with different units
+nav_premium = npv_to_company / mkt_cap  # Billions vs Millions!
+
+# ✅ CORRECT: Both to same unit (VND)
+nav_premium = (npv_to_company * 1e9) / (mkt_cap * 1e6)
+# Or simplified: npv_to_company * 1000 / mkt_cap
+
+# ❌ WRONG: Comparing annual forecast to quarterly actual
+growth = (forecast_npatmi - quarterly_npatmi) / quarterly_npatmi
+
+# ✅ CORRECT: Annualize or use consistent periods
+annual_actual = quarterly_npatmi * 4  # rough annualization
+growth = (forecast_npatmi - annual_actual) / annual_actual
+```
+
+### Unit Conversion Cheat Sheet
+
+```python
+# To convert everything to VND:
+mkt_cap_vnd = mkt_cap * 1e6           # Market_Data.MKT_CAP
+npv_vnd = npv_to_company * 1e9        # RealEstateProjects
+fa_value_vnd = value                   # FA_Quarterly (already VND)
+banking_vnd = npatmi                   # BankingMetrics (already VND)
+
+# To convert ratios to percentages:
+roe_pct = roe * 100                    # 0.177 → 17.7%
+nim_pct = nim * 100                    # 0.028 → 2.8%
+```
+
+---
+
 ## Error Handling
 
 ### KeyError - Column Not Found
@@ -335,6 +448,7 @@ Check date format (`'2024-01-01'` not `'01/01/2024'`) and filter conditions.
 **Python Executor:**
 - [ ] NO import statements
 - [ ] Using SQL JOINs (not f-strings)
+- [ ] **ALL queries executed BEFORE any DataFrame manipulation** (critical!)
 - [ ] Assigned to `result` variable
 - [ ] Result is JSON-serializable
 - [ ] Aggregated data (not raw DataFrames)
@@ -343,5 +457,6 @@ Check date format (`'2024-01-01'` not `'01/01/2024'`) and filter conditions.
 
 ---
 
-**Last Tested**: 2025-12-17
+**Last Tested**: 2026-01-14
 **Success Rate**: 90%+ for SQL, 95%+ for Python when following patterns
+**Known Bug**: DataFrame column/row access breaks subsequent sql_query() calls - use workarounds above
