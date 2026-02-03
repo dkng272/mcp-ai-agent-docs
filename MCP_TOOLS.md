@@ -1,14 +1,12 @@
-# ClaudeTrade MCP Server - Tools Documentation
-
-Remote MCP server at `https://claudetrade.live/mcp-sse/sse` (HTTP transport)
+# MCP Tools Documentation
 
 ## Overview
 
-The ClaudeTrade MCP provides access to:
+The MCP server provides access to:
 - **SQL Server** (Azure): Vietnamese stock market data, financials, sector data
-- **MongoDB**: Company models, real estate projects, agent configurations
+- **MongoDB**: Company models, real estate projects, macro research, fund data
 - **PostgreSQL/TimescaleDB**: Real-time CVD (Cumulative Volume Delta) data
-- **Supabase**: Broker consensus and research reports
+- **Supabase**: Broker consensus, F319 forum analysis, Zalo group signals
 
 ---
 
@@ -308,7 +306,7 @@ limit: 5
 filter: {"source": "gavekal", "date_iso": {"$gte": "2025-12-01"}}
 ```
 
-### Available MongoDB Collections
+### Available MongoDB Collections (IRIS)
 
 | Collection | Description |
 |------------|-------------|
@@ -320,6 +318,27 @@ filter: {"source": "gavekal", "date_iso": {"$gte": "2025-12-01"}}
 | `MoCData` | Ministry of Construction real estate data |
 | `macro_research_articles` | Macro research articles (Gavekal, Goldman Sachs) |
 | `macro_research_embeddings` | Vector embeddings for semantic search |
+| `CBREMarketData` | CBRE quarterly real estate data (HCMC, Hanoi) |
+| `O&GProjectsData` | Vietnam O&G/LNG projects |
+| `commodity_news` | AI commodity news summaries |
+| `VPAContainerData` | VPA monthly container throughput |
+| `TickerNews` | Raw Vietnamese stock news articles |
+| `ProcessedTickerNews` | AI-processed ticker news with summaries |
+| `supplement_data` | Company operational KPIs from Excel models |
+
+### Available MongoDB Collections (CEODatabase)
+
+| Collection | Description |
+|------------|-------------|
+| `veil_monthly_snapshots` | Monthly fund NAV snapshots |
+| `veil_shareholders` | Fund shareholder registry |
+| `aum_snapshots` | AUM tracking over time |
+| `veil_summary_stats` | Fund summary statistics |
+
+```python
+# Query CEODatabase collections
+mongo_find("veil_monthly_snapshots", {"fund_code": "VEIL"}, {}, {"date": -1}, 12, database="CEODatabase")
+```
 
 ---
 
@@ -398,7 +417,7 @@ result = {"rows": len(df), "download": csv_info}
     "path": "vnm_data.csv",
     "rows": 100,
     "size_bytes": 5432,
-    "download_url": "https://claudetrade.live/mcp-sse/download/abc123...",
+    "download_url": "https://<server>/download/abc123...",
     "expires_in": "30 minutes"
   }]
 }
@@ -434,7 +453,7 @@ result = {"chart": img_info}
   "images_saved": [{
     "filename": "vnm_price_chart.png",
     "size_bytes": 45678,
-    "download_url": "https://claudetrade.live/mcp-sse/download/def456...",
+    "download_url": "https://<server>/download/def456...",
     "expires_in": "30 minutes"
   }]
 }
@@ -547,6 +566,153 @@ download_path: "~/Downloads/report.pdf"  # optional
 
 ---
 
+## 6. F319 Forum Tools
+
+AI-analyzed Vietnamese stock forum data from f319.com.
+
+### `f319_discussion_points_search`
+Search 87K+ AI-extracted discussion points with sentiment analysis.
+
+```python
+ticker: "VNM"                    # optional
+sentiment: "bullish"             # bullish, bearish, neutral, unclear
+informational_value: "High"      # High, Medium, Low
+signal_score: 1                  # 1-5 (1=strongest)
+limit: 20                        # max 100
+```
+
+### `f319_kol_posts_search`
+Search 4.8K+ analyzed posts from Key Opinion Leaders.
+
+```python
+kol_username: "livermore888"     # optional
+ticker: "FPT"                    # optional
+sentiment: "bullish"             # bullish, bearish, neutral
+signal_score: 1                  # 1-5 (1=strongest)
+days: 7                          # posts from last N days
+limit: 20
+```
+
+### `f319_stock_thesis_get`
+Get synthesized investment thesis (bull/bear cases) for 509 stocks.
+
+```python
+ticker: "VNM"  # required
+```
+
+### `f319_thread_search`
+Search 49K+ forum threads with ticker mappings.
+
+```python
+ticker: "VNM"                    # optional
+keyword: "bank"                  # search in title
+active_only: true                # only active threads
+min_posts: 100                   # minimum post count
+sort_by: "popular"               # recent, popular, posts
+limit: 20
+```
+
+### `f319_kol_list`
+List 21 KOL profiles with quality/accuracy scores.
+
+```python
+sector: "Banking"                # filter by expertise
+ticker: "VNM"                    # filter by specialty
+min_quality_score: 70            # 0-100
+verified_only: true
+sort_by: "accuracy"              # influence, quality, accuracy, posts
+```
+
+---
+
+## 7. Zalo Investment Group Tools
+
+Real-time signals from 24 Vietnamese investment Zalo groups.
+
+### `zalo_daily_recommendations_get`
+4,100+ daily stock picks with BUY/SELL/HOLD signals.
+
+```python
+ticker: "VNM"                    # optional
+analysis_date: "2025-12-20"      # optional, default: today
+recommendation_type: "BUY"       # BUY, SELL, HOLD
+min_confidence: 0.7              # 0-1
+risk_level: "LOW"                # HIGH, MEDIUM, LOW
+sentiment: "BULLISH"             # BULLISH, BEARISH, NEUTRAL
+sort_by: "confidence"            # confidence, upside, recent
+limit: 20
+```
+
+### `zalo_realtime_alerts_search`
+14,500+ real-time alerts (breakouts, volume spikes, sentiment shifts).
+
+```python
+ticker: "VNM"                    # optional
+alert_type: "PRICE_BREAKOUT"     # PRICE_BREAKOUT, VOLUME_SPIKE, SENTIMENT_SHIFT, TECHNICAL_SIGNAL, NEWS_IMPACT, ADMIN_SIGNAL
+severity: "HIGH"                 # HIGH, MEDIUM, LOW
+action_recommended: "BUY"        # BUY, SELL, HOLD
+hours: 24                        # alerts from last N hours
+min_confidence: 0.7
+sort_by: "recent"                # recent, confidence, severity
+limit: 20
+```
+
+### `zalo_market_sentiment_current`
+Live sentiment snapshots from 12 groups.
+
+```python
+group_name: "Group A"            # optional
+sentiment: "BULLISH"             # BULLISH, BEARISH, NEUTRAL, MIXED
+min_significance: 0.7            # 0-1
+admin_involved_only: true        # only admin-posted updates
+limit: 12
+```
+
+### `zalo_ticker_heatmap_get`
+Aggregated recommendations by ticker with BUY/SELL ratios.
+
+```python
+ticker: "VNM"                    # optional
+analysis_date: "2025-12-20"      # optional
+net_sentiment: "positive"        # positive, negative, neutral
+sort_by: "mentions"              # mentions, sentiment, activity, buy_recs
+limit: 20
+```
+
+### `zalo_market_shifts_search`
+Detected sentiment changes and reversals.
+
+```python
+ticker: "VNM"                    # optional
+significance_level: "HIGH"       # HIGH, MEDIUM, LOW
+sentiment_after: "BULLISH"       # BULLISH, BEARISH, NEUTRAL
+hours: 24                        # shifts from last N hours
+min_confidence: 0.7
+sort_by: "significance"          # recent, confidence, significance
+limit: 20
+```
+
+---
+
+## 8. Sentiment Dashboard
+
+### `sentiment_dashboard_get`
+Comprehensive sentiment aggregation from all sources.
+
+```python
+ticker: "VNM"                    # optional - filters all sources
+timeframe_hours: 24              # hours to look back (1-168)
+include_charts: true             # generate matplotlib charts
+```
+
+**Returns:**
+- Broker consensus (target prices, recommendations, recent reports)
+- Zalo sentiment (group-by-group breakdown, alerts, recommendations)
+- F319 sentiment (discussion points, KOL posts, thread activity)
+- Aggregate sentiment score and divergence analysis
+
+---
+
 ## Quick Reference
 
 | Category | Tool | Use Case |
@@ -563,16 +729,23 @@ download_path: "~/Downloads/report.pdf"  # optional
 | CVD | `postgres_sector_cvd` | Sector money flow |
 | CVD | `postgres_stock_cvd` | Stock-level money flow |
 | Consensus | `supabase_consensus_analyze` | Broker sentiment analysis |
+| F319 | `f319_discussion_points_search` | Forum discussion sentiment |
+| F319 | `f319_stock_thesis_get` | Stock bull/bear thesis |
+| F319 | `f319_kol_posts_search` | KOL opinions |
+| Zalo | `zalo_daily_recommendations_get` | Daily BUY/SELL signals |
+| Zalo | `zalo_realtime_alerts_search` | Real-time trading alerts |
+| Zalo | `zalo_market_sentiment_current` | Live market sentiment |
+| Sentiment | `sentiment_dashboard_get` | All-source sentiment aggregation |
 
 ---
 
 ## Connection Details
 
 - **SQL Server**: `sqls-dclab.database.windows.net/dclab` (read-only)
-- **MongoDB**: `IRIS` database on MongoDB Atlas
+- **MongoDB**: `IRIS` and `CEODatabase` on MongoDB Atlas
 - **PostgreSQL**: TimescaleDB for real-time CVD
-- **Supabase**: Broker consensus data
+- **Supabase**: Broker consensus, F319 forum data, Zalo group signals
 
 ---
 
-*Last updated: December 29, 2025*
+*Last Updated: 2026-02-03*

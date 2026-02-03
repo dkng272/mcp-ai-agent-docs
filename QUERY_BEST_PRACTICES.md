@@ -16,6 +16,9 @@
 | Rolling/window calculations | `execute_python` | pandas rolling() functions |
 | Multiple related analyses | `execute_python` | Process all in one call |
 | Don't know which table | `find_relevant_tables` | Semantic search for tables |
+| Forum sentiment/thesis | `f319_*` tools | Pre-analyzed F319 data |
+| Zalo signals/alerts | `zalo_*` tools | Real-time group signals |
+| All-source sentiment | `sentiment_dashboard_get` | Aggregates all sources |
 
 ---
 
@@ -457,6 +460,6 @@ Check date format (`'2024-01-01'` not `'01/01/2024'`) and filter conditions.
 
 ---
 
-**Last Tested**: 2026-01-14
+**Last Tested**: 2026-02-03
 **Success Rate**: 90%+ for SQL, 95%+ for Python when following patterns
 **Known Bug**: DataFrame column/row access breaks subsequent sql_query() calls - use workarounds above
