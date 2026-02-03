@@ -184,9 +184,35 @@ Brokerage financials. Key: `TICKER`, `YEARREPORT`, `LENGTHREPORT`, `ACTUAL`, `KE
 #### `Brokerage_Propbook`
 Proprietary holdings. Key: `Ticker`, `Quarter`, `Holdings`, `Value`.
 
+#### `Brokerage_Market_Share`
+Quarterly broker market share rankings. Key: `TICKER`, `YEAR`, `QUARTER`, `MARKET_SHARE_PCT`, `RANK`.
+
+```sql
+SELECT * FROM Brokerage_Market_Share WHERE YEAR = 2025 AND QUARTER = 4 ORDER BY RANK
+```
+
+#### `Brokerage_Comments`
+AI-generated quarterly commentary for brokerage stocks. Key: `TICKER`, `QUARTER`, `COMMENTARY`, `GENERATED_AT`.
+
+Detailed markdown analysis covering TOI breakdown, margin lending, investment/trading, IB, and cost control.
+
+#### `Broker_Calls`
+Broker investment theses with growth outlook and catalysts. Key: `Period`, `Broker`, `Ticker`, `Growth`, `Catalyst`.
+
+```sql
+SELECT * FROM Broker_Calls WHERE Ticker = 'VHM' ORDER BY Period DESC
+```
+
 ---
 
 ### Other Tables
+
+#### `PNJ_Gold_Prices`
+Daily PNJ gold buy/sell prices (VND per tael). Key: `Date`, `Type`, `Buy`, `Sell`.
+
+```sql
+SELECT * FROM PNJ_Gold_Prices ORDER BY Date DESC
+```
 
 #### `Sector_Map`
 Stock sector mapping. Key: `Ticker`, `Sector`, `L1`, `L2`, `L3`, `McapClassification`, `VNI`.
@@ -465,6 +491,10 @@ Returns: Broker consensus, Zalo sentiment breakdown, F319 discussion analysis, a
 | Power generation | `Power_Metrics` | `Category = 'generation'` |
 | Port throughput | `Container_volume` or `VPAContainerData` | `Company`, `Port` |
 | Brokerage metrics | `BrokerageMetrics` | `KEYCODE`, `ACTUAL = 1` |
+| Broker market share | `Brokerage_Market_Share` | `YEAR`, `QUARTER`, `RANK` |
+| Broker investment thesis | `Broker_Calls` | `Ticker`, `Period` |
+| Brokerage AI commentary | `Brokerage_Comments` | `TICKER`, `QUARTER` |
+| Gold prices (PNJ) | `PNJ_Gold_Prices` | `Date`, `Type` |
 | Corporate bonds | `Bonds_Issuance` | `industry_sector`, `issue_date` |
 | Analyst comments | `IRIS_Company_Comments` | `TICKER`, `ISDELETED = 0` |
 | Sector mapping | `Sector_Map` | `Ticker`, `Sector` |

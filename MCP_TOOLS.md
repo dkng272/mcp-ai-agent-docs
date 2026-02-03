@@ -75,6 +75,10 @@ includeHeaders: true
 | `Forecast` | DC internal forecasts (no prefix) + broker consensus (e.g., `HSC.NPATMI`) |
 | `BankingMetrics` | Bank-specific KPIs |
 | `BrokerageMetrics` | Brokerage company KPIs |
+| `Brokerage_Market_Share` | Quarterly broker market share rankings |
+| `Brokerage_Comments` | AI-generated quarterly brokerage commentary |
+| `Broker_Calls` | Broker investment theses (growth, catalysts) |
+| `PNJ_Gold_Prices` | Daily PNJ gold buy/sell prices |
 | `Power_Company_Operations` | Power sector operational data |
 | `Steel_data` | Steel industry data |
 | `Commodity` | Commodity prices |
