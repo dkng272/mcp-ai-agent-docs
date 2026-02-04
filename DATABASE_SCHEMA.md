@@ -309,7 +309,13 @@ mongo_find("VPAContainerData", {}, {}, { year: -1, month: -1 }, 1)
 Raw Vietnamese stock news articles. Key: `ticker`, `title`, `content`, `published_date`, `source`.
 
 ### `ProcessedTickerNews`
-AI-processed ticker news with summaries. Key: `ticker`, `summary`, `sentiment`, `key_points`.
+AI-processed WhatsApp news with ticker extractions. Key: `message_id`, `source_chat`, `timestamp`, `extractions[]`.
+
+**Fields**: `extractions[].ticker`, `extractions[].sentiment`, `extractions[].news_type`, `extractions[].summary`
+
+```javascript
+mongo_find("ProcessedTickerNews", { "extractions.ticker": "DGW" }, {}, { timestamp: -1 }, 5)
+```
 
 ### `supplement_data`
 Company operational KPIs from Excel models. Key: `ticker`, `data_type`, `metrics`.
@@ -502,6 +508,7 @@ Returns: Broker consensus, Zalo sentiment breakdown, F319 discussion analysis, a
 | CBRE market data | `CBREMarketData` | `city`, `year`, `quarter` |
 | O&G projects | `O&GProjectsData` | `metadata.data_type` |
 | Commodity news | `commodity_news` | `commodity_group`, `direction` |
+| Processed ticker news | `ProcessedTickerNews` | `extractions.ticker`, `timestamp` |
 | Macro research | `macro_research_articles` | `source`, `date_iso` |
 | Semantic macro search | `mongo_vector_search` | `query`, `source`, `days` |
 | **Broker consensus analysis** | `supabase_consensus_analyze` | `ticker`, `quarter` |
