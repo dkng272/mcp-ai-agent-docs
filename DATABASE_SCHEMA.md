@@ -1,6 +1,7 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-02-03
+**Last Updated**: 2026-02-23
+**MCP Server**: Pylab MCP (`pylab-mcp`)
 **Note**: Use MCP tools (`mssql_describe_table`, `mongo_describe_collection`) for full schemas on demand.
 
 ---
@@ -392,9 +393,9 @@ ticker: "VNM", sentiment: "bullish", signal_score: 1, limit: 20
 
 #### `f319_kol_posts_search`
 Search 4.8K+ analyzed posts from Key Opinion Leaders.
-- Filter: `kol_username`, `ticker`, `sentiment`, `signal_score`, `days`
+- Filter: `kol_username`, `ticker`, `sentiment`, `signal_score`, `informational_value`, `days`
 ```
-kol_username: "livermore888", ticker: "FPT", days: 7
+kol_username: "livermore888", ticker: "FPT", informational_value: "High", days: 7
 ```
 
 #### `f319_stock_thesis_get`
@@ -412,9 +413,9 @@ ticker: "VNM", sort_by: "popular", limit: 20
 
 #### `f319_kol_list`
 List 21 KOL profiles with quality/accuracy scores.
-- Filter: `sector`, `ticker`, `min_quality_score`, `verified_only`
+- Filter: `sector`, `ticker`, `min_quality_score`, `min_influence_score`, `verified_only`
 ```
-sector: "Banking", min_quality_score: 70, sort_by: "accuracy"
+sector: "Banking", min_quality_score: 70, min_influence_score: 50, sort_by: "accuracy"
 ```
 
 ---
@@ -427,17 +428,17 @@ Real-time signals from 24 Vietnamese investment Zalo groups. Access via dedicate
 
 #### `zalo_daily_recommendations_get`
 4,100+ daily stock picks with BUY/SELL/HOLD signals.
-- Filter: `ticker`, `analysis_date`, `recommendation_type`, `min_confidence`, `risk_level`
+- Filter: `ticker`, `analysis_date`, `recommendation_type`, `min_confidence`, `risk_level`, `group_name`
 ```
 recommendation_type: "BUY", min_confidence: 0.7, sort_by: "confidence"
 ```
 
 #### `zalo_realtime_alerts_search`
 14,500+ real-time alerts (breakouts, volume spikes, sentiment shifts).
-- Filter: `ticker`, `alert_type`, `severity`, `action_recommended`, `hours`
+- Filter: `ticker`, `alert_type`, `severity`, `action_recommended`, `hours`, `group_name`, `is_resolved`
 - Alert types: PRICE_BREAKOUT, VOLUME_SPIKE, SENTIMENT_SHIFT, TECHNICAL_SIGNAL, NEWS_IMPACT, ADMIN_SIGNAL
 ```
-alert_type: "PRICE_BREAKOUT", severity: "HIGH", hours: 24
+alert_type: "PRICE_BREAKOUT", severity: "HIGH", hours: 24, is_resolved: false
 ```
 
 #### `zalo_market_sentiment_current`
@@ -449,16 +450,16 @@ sentiment: "BULLISH", min_significance: 0.7
 
 #### `zalo_ticker_heatmap_get`
 Aggregated recommendations by ticker with BUY/SELL ratios.
-- Filter: `ticker`, `analysis_date`, `net_sentiment`, `sort_by` (mentions/sentiment/buy_recs)
+- Filter: `ticker`, `analysis_date`, `net_sentiment`, `min_mentions`, `sort_by` (mentions/sentiment/activity/buy_recs)
 ```
-net_sentiment: "positive", sort_by: "mentions"
+net_sentiment: "positive", min_mentions: 3, sort_by: "mentions"
 ```
 
 #### `zalo_market_shifts_search`
 Detected sentiment changes and reversals.
-- Filter: `ticker`, `significance_level`, `sentiment_after`, `hours`
+- Filter: `ticker`, `significance_level`, `sentiment_after`, `hours`, `min_confidence`, `group_name`
 ```
-significance_level: "HIGH", sentiment_after: "BULLISH", hours: 24
+significance_level: "HIGH", sentiment_after: "BULLISH", hours: 24, min_confidence: 0.7
 ```
 
 ---

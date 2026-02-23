@@ -1,11 +1,10 @@
-# MCP Tools Documentation
+# Pylab MCP Tools Documentation
 
 ## Overview
 
-The MCP server provides access to:
+The Pylab MCP server (`pylab-mcp`) provides access to:
 - **SQL Server** (Azure): Vietnamese stock market data, financials, sector data
 - **MongoDB**: Company models, real estate projects, macro research, fund data
-- **PostgreSQL/TimescaleDB**: Real-time CVD (Cumulative Volume Delta) data
 - **Supabase**: Broker consensus, F319 forum analysis, Zalo group signals
 
 ---
@@ -505,34 +504,7 @@ result = {
 
 ---
 
-## 4. PostgreSQL CVD Tools (Real-time Data)
-
-### `postgres_sector_cvd`
-Get sector/list aggregated CVD data.
-
-```python
-list_name: "VN30"  # or "Banking", "Real Estate", "Brokers", etc.
-date: "2025-12-17"  # optional, defaults to today
-limit: 500
-```
-
-### `postgres_stock_cvd`
-Get individual stock CVD data.
-
-```python
-symbol: "VHM"
-date: "2025-12-17"
-limit: 500
-```
-
-**CVD (Cumulative Volume Delta):**
-- Measures cumulative buy vs sell volume/value
-- Positive CVD = net buying pressure
-- Negative CVD = net selling pressure
-
----
-
-## 5. Broker Consensus Tools
+## 4. Broker Consensus Tools
 
 ### `supabase_consensus_analyze`
 Get broker consensus analysis for a ticker.
@@ -570,7 +542,7 @@ download_path: "~/Downloads/report.pdf"  # optional
 
 ---
 
-## 6. F319 Forum Tools
+## 5. F319 Forum Tools
 
 AI-analyzed Vietnamese stock forum data from f319.com.
 
@@ -591,8 +563,9 @@ Search 4.8K+ analyzed posts from Key Opinion Leaders.
 ```python
 kol_username: "livermore888"     # optional
 ticker: "FPT"                    # optional
-sentiment: "bullish"             # bullish, bearish, neutral
+sentiment: "bullish"             # bullish, bearish, neutral, unclear
 signal_score: 1                  # 1-5 (1=strongest)
+informational_value: "High"      # High, Medium, Low
 days: 7                          # posts from last N days
 limit: 20
 ```
@@ -623,13 +596,14 @@ List 21 KOL profiles with quality/accuracy scores.
 sector: "Banking"                # filter by expertise
 ticker: "VNM"                    # filter by specialty
 min_quality_score: 70            # 0-100
+min_influence_score: 50          # 0-100
 verified_only: true
 sort_by: "accuracy"              # influence, quality, accuracy, posts
 ```
 
 ---
 
-## 7. Zalo Investment Group Tools
+## 6. Zalo Investment Group Tools
 
 Real-time signals from 24 Vietnamese investment Zalo groups.
 
@@ -643,6 +617,7 @@ recommendation_type: "BUY"       # BUY, SELL, HOLD
 min_confidence: 0.7              # 0-1
 risk_level: "LOW"                # HIGH, MEDIUM, LOW
 sentiment: "BULLISH"             # BULLISH, BEARISH, NEUTRAL
+group_name: "Group A"            # optional - filter by specific Zalo group
 sort_by: "confidence"            # confidence, upside, recent
 limit: 20
 ```
@@ -657,6 +632,8 @@ severity: "HIGH"                 # HIGH, MEDIUM, LOW
 action_recommended: "BUY"        # BUY, SELL, HOLD
 hours: 24                        # alerts from last N hours
 min_confidence: 0.7
+group_name: "Group A"            # optional - filter by specific Zalo group
+is_resolved: false               # optional - true=resolved, false=active
 sort_by: "recent"                # recent, confidence, severity
 limit: 20
 ```
@@ -679,6 +656,7 @@ Aggregated recommendations by ticker with BUY/SELL ratios.
 ticker: "VNM"                    # optional
 analysis_date: "2025-12-20"      # optional
 net_sentiment: "positive"        # positive, negative, neutral
+min_mentions: 3                  # optional - minimum mention count
 sort_by: "mentions"              # mentions, sentiment, activity, buy_recs
 limit: 20
 ```
@@ -692,13 +670,14 @@ significance_level: "HIGH"       # HIGH, MEDIUM, LOW
 sentiment_after: "BULLISH"       # BULLISH, BEARISH, NEUTRAL
 hours: 24                        # shifts from last N hours
 min_confidence: 0.7
+group_name: "Group A"            # optional - filter by specific Zalo group
 sort_by: "significance"          # recent, confidence, significance
 limit: 20
 ```
 
 ---
 
-## 8. Sentiment Dashboard
+## 7. Sentiment Dashboard
 
 ### `sentiment_dashboard_get`
 Comprehensive sentiment aggregation from all sources.
@@ -730,8 +709,6 @@ include_charts: true             # generate matplotlib charts
 | Python | `execute_python` | Combined SQL+MongoDB analysis |
 | Python | `save_csv(..., downloadable=True)` | Export CSV with download URL |
 | Python | `save_figure(fig, filename)` | Export chart with download URL |
-| CVD | `postgres_sector_cvd` | Sector money flow |
-| CVD | `postgres_stock_cvd` | Stock-level money flow |
 | Consensus | `supabase_consensus_analyze` | Broker sentiment analysis |
 | F319 | `f319_discussion_points_search` | Forum discussion sentiment |
 | F319 | `f319_stock_thesis_get` | Stock bull/bear thesis |
@@ -745,11 +722,11 @@ include_charts: true             # generate matplotlib charts
 
 ## Connection Details
 
+- **MCP Server**: Pylab MCP (`pylab-mcp`)
 - **SQL Server**: `sqls-dclab.database.windows.net/dclab` (read-only)
 - **MongoDB**: `IRIS` and `CEODatabase` on MongoDB Atlas
-- **PostgreSQL**: TimescaleDB for real-time CVD
 - **Supabase**: Broker consensus, F319 forum data, Zalo group signals
 
 ---
 
-*Last Updated: 2026-02-03*
+*Last Updated: 2026-02-23*

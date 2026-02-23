@@ -1,8 +1,8 @@
-# MCP AI Agent Training Documentation
+# Pylab MCP AI Agent Training Documentation
 
-**Professional documentation for training AI agents to query financial databases via Model Context Protocol (MCP)**
+**Professional documentation for training AI agents to query financial databases via the Pylab MCP server**
 
-This repository provides comprehensive schema documentation and query best practices for building AI-powered financial analysis tools using Microsoft SQL Server MCP.
+This repository provides comprehensive schema documentation and query best practices for building AI-powered financial analysis tools using Pylab MCP.
 
 ---
 
@@ -14,7 +14,7 @@ This repository provides comprehensive schema documentation and query best pract
 3. **QUERY_BEST_PRACTICES.md** - When writing queries
 
 ### [MCP_TOOLS.md](MCP_TOOLS.md)
-**Entry point** for AI agents. Quick reference for MCP server tools: table discovery, SQL, MongoDB, PostgreSQL CVD, Python executor, broker consensus, F319 forum analysis, and Zalo group signals.
+**Entry point** for AI agents. Quick reference for Pylab MCP server tools: table discovery, SQL, MongoDB, Python executor, broker consensus, F319 forum analysis, and Zalo group signals.
 
 ### [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
 Complete database schema reference covering Azure SQL (44 tables) and MongoDB (6 collections). Includes market data, financials, sector operations, commodities, macro indicators, company models, and real estate valuations.
@@ -61,10 +61,10 @@ Query patterns based on actual financial analysis workflows including earnings a
 
 ## 🛠 Technical Stack
 
-- **MCP Server**: Microsoft SQL Server MCP (Node.js or Python)
-- **Database**: Azure SQL Database / SQL Server 2016+
+- **MCP Server**: Pylab MCP (`pylab-mcp`) - unified access to SQL, MongoDB, Supabase
+- **Databases**: Azure SQL, MongoDB Atlas, Supabase PostgreSQL
 - **AI Platforms**: Claude Desktop, Claude Code
-- **Query Language**: T-SQL with MCP-specific optimizations
+- **Query Language**: T-SQL, MongoDB queries, Python executor
 
 ---
 
@@ -91,6 +91,7 @@ Please submit pull requests with tested examples and clear descriptions.
 
 ## 📝 Version History
 
+- **v3.1** (2026-02-23): Renamed to Pylab MCP; removed PostgreSQL CVD tools (no longer on server); updated all docs
 - **v3.0** (2026-02-03): Added F319 forum tools (5), Zalo group tools (5), sentiment dashboard; added CEODatabase (VEIL fund data); renamed to generic MCP_TOOLS.md
 - **v2.0** (2025-12-17): Consolidated to 3 core docs (MCP_TOOLS → DATABASE_SCHEMA → QUERY_BEST_PRACTICES)
 - **v1.5** (2025-12-17): Removed IRIS Manual Data guide (table shrunk); added MCP tools doc
@@ -117,5 +118,5 @@ Data: Proprietary - Not included in repository
 
 ---
 
-**Last Updated**: 2026-02-03
+**Last Updated**: 2026-02-23
 **Repository**: [github.com/dkng272/mcp-ai-agent-docs](https://github.com/dkng272/mcp-ai-agent-docs)

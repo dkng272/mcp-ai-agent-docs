@@ -1,7 +1,7 @@
 # Query Best Practices
 
-**Last Updated**: 2025-12-17
-**Purpose**: Proven patterns for querying via MCP tools (SQL and Python)
+**Last Updated**: 2026-02-23
+**Purpose**: Proven patterns for querying via Pylab MCP tools (SQL and Python)
 
 ---
 
