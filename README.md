@@ -91,6 +91,7 @@ Please submit pull requests with tested examples and clear descriptions.
 
 ## 📝 Version History
 
+- **v3.2** (2026-04-13): Added 9 new tools (get_stock_snapshot, query_banking_credit, dashboard_retrieve, supabase_market_breadth, supabase_sector_mfi, website_market_view, f319_stock_discussion_points, zalo_daily_market_sentiment, zalo_stock_recommendation); removed sentiment_dashboard_get and zalo_market_sentiment_current
 - **v3.1** (2026-02-23): Renamed to Pylab MCP; removed PostgreSQL CVD tools (no longer on server); updated all docs
 - **v3.0** (2026-02-03): Added F319 forum tools (5), Zalo group tools (5), sentiment dashboard; added CEODatabase (VEIL fund data); renamed to generic MCP_TOOLS.md
 - **v2.0** (2025-12-17): Consolidated to 3 core docs (MCP_TOOLS → DATABASE_SCHEMA → QUERY_BEST_PRACTICES)
@@ -118,5 +119,5 @@ Data: Proprietary - Not included in repository
 
 ---
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-04-13
 **Repository**: [github.com/dkng272/mcp-ai-agent-docs](https://github.com/dkng272/mcp-ai-agent-docs)

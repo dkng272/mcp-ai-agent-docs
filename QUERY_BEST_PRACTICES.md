@@ -1,6 +1,6 @@
 # Query Best Practices
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-04-13
 **Purpose**: Proven patterns for querying via Pylab MCP tools (SQL and Python)
 
 ---
@@ -9,6 +9,9 @@
 
 | Scenario | Tool | Why |
 |----------|------|-----|
+| **Quick stock overview** | `get_stock_snapshot` | **Start here** — all-in-one (saves ~15K tokens) |
+| **Banking analysis** | `query_banking_credit` | Unified 7-table query (76% token savings) |
+| **Stock dashboards** | `dashboard_retrieve` | Pre-built HTML reports |
 | Simple lookup (<100 rows) | `mssql_read_data` | Direct, fast |
 | Single SQL aggregation | `mssql_read_data` | SQL aggregates are efficient |
 | Complex multi-step analysis | `execute_python` | pandas processing power |
@@ -16,9 +19,10 @@
 | Rolling/window calculations | `execute_python` | pandas rolling() functions |
 | Multiple related analyses | `execute_python` | Process all in one call |
 | Don't know which table | `find_relevant_tables` | Semantic search for tables |
+| Market breadth / MFI | `supabase_market_breadth`, `supabase_sector_mfi` | MA breadth, sector money flow |
 | Forum sentiment/thesis | `f319_*` tools | Pre-analyzed F319 data |
 | Zalo signals/alerts | `zalo_*` tools | Real-time group signals |
-| All-source sentiment | `sentiment_dashboard_get` | Aggregates all sources |
+| Market view (social) | `website_market_view` | Multi-source aggregated insights |
 
 ---
 

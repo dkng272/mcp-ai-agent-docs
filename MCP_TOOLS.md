@@ -29,7 +29,68 @@ top_k: 5  # number of results
 
 ---
 
-## 1. SQL Server Tools
+## 1. Unified Research Tools
+
+High-level tools that combine multiple data sources in a single call. **Use these first** before falling back to individual SQL/MongoDB queries.
+
+### `get_stock_snapshot`
+Comprehensive stock snapshot in one call — combines market data, financials, sector metrics, news, F319 sentiment, Zalo recommendations, and broker consensus. Saves ~15K tokens vs 7-8 separate queries.
+
+```python
+ticker: "VCB"                       # required
+include_sector_metrics: true        # Banking/Steel/Power KPIs (default: true)
+include_news: true                  # Top 3 recent headlines (default: true)
+include_sentiment: true             # F319 + Zalo signals (default: true)
+include_broker_consensus: true      # Broker consensus analysis (default: true)
+```
+
+**Returns**: Latest price/valuations (PE/PB/PS), quarterly financials with YoY growth, sector-specific KPIs, top 3 news, F319 forum analysis (90d sentiment/signal distributions, top discussion points), Zalo recommendations (30d BUY/SELL/HOLD distribution, confidence, upside), broker consensus.
+
+**Use this for**: Quick stock overview, initial research, answering "tell me about ticker X".
+
+### `query_banking_credit`
+Unified banking sector query consolidating 7 tables (BankingMetrics, Banking_Drivers, Bank_Deposit_Rates, Vietnam_Credit_Deposit, etc.). ~76% token reduction vs separate queries.
+
+```python
+query_type: "bank_overview"         # required - see types below
+ticker: "VCB"                       # single, array ["VCB","TCB"], or omit for all
+bank_type: "SOCB"                   # SOCB, Private_1, Private_2, Private_3
+period:                             # default: latest quarter
+  quarters: 4                       # last N quarters
+  # or start_date/end_date: "2024-Q1" / "2024-12-31"
+comparison_period: "YoY"            # QoQ, YoY, T12M
+aggregation: "bank"                 # bank, type (by bank type), sector (system-wide)
+metrics: ["ROE", "NIM", "NPL"]     # specific metrics (default: all for query_type)
+sort_by: {field: "ROE", order: "desc"}
+include_commentary: false           # AI-generated banking comments
+limit: 20
+```
+
+**Query types:**
+| Type | Description |
+|------|-------------|
+| `bank_overview` | Latest metrics + drivers |
+| `performance_analysis` | Growth drivers |
+| `deposit_rates` | Historical deposit rates |
+| `credit_deposit_macro` | System-wide credit/deposit |
+| `npl_analysis` | Asset quality |
+| `profitability` | ROE/ROA/NIM |
+| `asset_quality` | Loan composition |
+| `custom_sql` | Advanced (use `custom_sql` param) |
+
+### `dashboard_retrieve`
+Retrieve pre-built Vietnamese stock research dashboards (HTML) with PE/PB analysis, broker consensus, F319/Zalo sentiment, and QC checks.
+
+```python
+ticker: "HPG"                       # optional - filter by ticker
+date: "2026-04-13"                  # optional - filter by date (YYYY-MM-DD)
+latest: true                        # only most recent dashboard per ticker
+include_html: false                 # true to get full HTML content (default: false = metadata only)
+```
+
+---
+
+## 2. SQL Server Tools
 
 ### `mssql_list_table`
 List all tables in the database.
@@ -86,7 +147,7 @@ includeHeaders: true
 
 ---
 
-## 2. MongoDB Tools
+## 3. MongoDB Tools
 
 ### `mongo_list_collections`
 List all collections in the database.
@@ -345,7 +406,7 @@ mongo_find("veil_monthly_snapshots", {"fund_code": "VEIL"}, {}, {"date": -1}, 12
 
 ---
 
-## 3. Unified Python Executor
+## 4. Unified Python Executor
 
 ### `execute_python`
 Execute Python code with access to SQL and MongoDB.
@@ -504,7 +565,7 @@ result = {
 
 ---
 
-## 4. Broker Consensus Tools
+## 5. Broker Consensus & Market Data Tools
 
 ### `supabase_consensus_analyze`
 Get broker consensus analysis for a ticker.
@@ -540,11 +601,53 @@ report_date: "2025-12-15"  # optional
 download_path: "~/Downloads/report.pdf"  # optional
 ```
 
+### `supabase_market_breadth`
+Market breadth data showing % and count of stocks above/below key moving averages.
+
+```python
+days: 30                            # 1-90 (default: 30)
+from_date: "2026-03-01"             # overrides days
+to_date: "2026-04-13"               # defaults to today
+```
+
+**Returns daily data**: `ma20_pct`, `ma50_pct`, `ma100_pct` (% above each MA), `ma{20,50,100}_sum_above/below` (counts), `total_tickers`.
+
+**Use for**: Market health/momentum gauge. High MA20% = short-term bullish breadth. Divergence between index rising + breadth falling = potential weakness.
+
+### `supabase_sector_mfi`
+Sector-level Money Flow Index (MFI) — momentum indicator (0-100) using price + volume.
+
+```python
+sector: "Ngân hàng"                 # optional - Vietnamese sector name, omit for all
+days: 30                            # 1-90 (default: 30)
+from_date: "2026-03-01"             # overrides days
+to_date: "2026-04-13"
+```
+
+**MFI interpretation**: >80 = overbought, <20 = oversold, rising = buying pressure, falling = selling pressure.
+
+**Use for**: Sector rotation detection, identifying capital inflows/outflows, overbought/oversold sectors.
+
 ---
 
-## 5. F319 Forum Tools
+## 6. F319 Forum Tools
 
 AI-analyzed Vietnamese stock forum data from f319.com.
+
+### `f319_stock_discussion_points`
+Get AI-analyzed discussion points for a specific ticker, grouped by analysis with sentiment, signal scores, and author info.
+
+```python
+ticker: "VNM"                       # required
+days: 90                            # 1-365 (default: 90)
+sentiment_filter: "bullish"         # bullish, bearish, neutral, unclear
+signal_score: 1                     # 1-5 (1=strongest)
+min_points: 3                       # minimum discussion points per analysis
+sort_by: "recent"                   # recent, points, signal
+limit: 20                           # max 50
+```
+
+**Use this** for ticker-specific F319 analysis. Use `f319_discussion_points_search` below for broader cross-ticker search.
 
 ### `f319_discussion_points_search`
 Search 87K+ AI-extracted discussion points with sentiment analysis.
@@ -603,9 +706,28 @@ sort_by: "accuracy"              # influence, quality, accuracy, posts
 
 ---
 
-## 6. Zalo Investment Group Tools
+## 7. Zalo Investment Group Tools
 
-Real-time signals from 24 Vietnamese investment Zalo groups.
+Real-time signals from 14 Vietnamese investment Zalo groups.
+
+### `zalo_stock_recommendation`
+Get Zalo group recommendations for a specific ticker with heatmap visualization data. Returns daily recommendations by date/group with BUY/SELL/HOLD signals, confidence, targets, stop loss, upside, and reasoning.
+
+```python
+ticker: "VNM"                       # required
+days: 30                            # 1-90 (default: 30)
+start_date: "2026-03-01"            # optional
+end_date: "2026-04-13"              # optional
+recommendation_type: "BUY"          # BUY, SELL, HOLD
+min_confidence: 0.7                 # 0-1
+risk_level: "LOW"                   # HIGH, MEDIUM, LOW
+sentiment: "BULLISH"                # BULLISH, BEARISH, NEUTRAL
+group_name: "Group A"               # optional
+admin_only: false                   # only admin recommendations
+sort_by: "recent"                   # recent, confidence, upside
+```
+
+**Use this** for ticker-specific Zalo recommendations. Use `zalo_daily_recommendations_get` below for broader cross-ticker signals.
 
 ### `zalo_daily_recommendations_get`
 4,100+ daily stock picks with BUY/SELL/HOLD signals.
@@ -638,16 +760,20 @@ sort_by: "recent"                # recent, confidence, severity
 limit: 20
 ```
 
-### `zalo_market_sentiment_current`
-Live sentiment snapshots from 12 groups.
+### `zalo_daily_market_sentiment`
+Daily market sentiment from 14 Zalo groups. Returns sentiment (BULLISH/BEARISH/NEUTRAL/MIXED), Vietnamese market view summaries, key insights (4-5 tracking points), and admin involvement.
 
 ```python
+analysis_date: "2026-04-13"      # optional (default: most recent)
+days_back: 7                     # 1-30, look back N days (default: most recent only)
+market_sentiment: "BULLISH"      # BULLISH, BEARISH, NEUTRAL, MIXED
 group_name: "Group A"            # optional
-sentiment: "BULLISH"             # BULLISH, BEARISH, NEUTRAL, MIXED
-min_significance: 0.7            # 0-1
-admin_involved_only: true        # only admin-posted updates
-limit: 12
+min_confidence: 0.7              # 0-1
+admin_only: false                # only groups with admin analysis
+limit: 14                        # default: 14 (all groups), max: 20
 ```
+
+**Note**: Sentiment is captured at specific analysis times — market views can change throughout the day. Check consensus across multiple groups for reliable signals.
 
 ### `zalo_ticker_heatmap_get`
 Aggregated recommendations by ticker with BUY/SELL ratios.
@@ -677,22 +803,17 @@ limit: 20
 
 ---
 
-## 7. Sentiment Dashboard
+## 8. Market Intelligence
 
-### `sentiment_dashboard_get`
-Comprehensive sentiment aggregation from all sources.
+### `website_market_view`
+Latest market view aggregated from multiple social sources (forums, investment groups, analyst commentary) via perpercity API. Includes citations to source materials.
 
 ```python
-ticker: "VNM"                    # optional - filters all sources
-timeframe_hours: 24              # hours to look back (1-168)
-include_charts: true             # generate matplotlib charts
+focus_area: "vietnam_stocks"     # optional: "vietnam_stocks", "global_economy"
+days: 1                          # 1-7 (default: 1)
 ```
 
-**Returns:**
-- Broker consensus (target prices, recommendations, recent reports)
-- Zalo sentiment (group-by-group breakdown, alerts, recommendations)
-- F319 sentiment (discussion points, KOL posts, thread activity)
-- Aggregate sentiment score and divergence analysis
+**Returns**: Markdown content with market insights, citations, and metadata.
 
 ---
 
@@ -700,6 +821,9 @@ include_charts: true             # generate matplotlib charts
 
 | Category | Tool | Use Case |
 |----------|------|----------|
+| **Start Here** | `get_stock_snapshot` | All-in-one stock overview (saves ~15K tokens) |
+| **Start Here** | `query_banking_credit` | Unified banking queries (8 types, 76% token savings) |
+| **Start Here** | `dashboard_retrieve` | Pre-built stock research dashboards (HTML) |
 | Discovery | `find_relevant_tables` | Find which table has the data you need |
 | SQL | `mssql_read_data` | Query market data, financials |
 | SQL | `mssql_export_data` | Export large datasets to CSV (server path) |
@@ -710,13 +834,18 @@ include_charts: true             # generate matplotlib charts
 | Python | `save_csv(..., downloadable=True)` | Export CSV with download URL |
 | Python | `save_figure(fig, filename)` | Export chart with download URL |
 | Consensus | `supabase_consensus_analyze` | Broker sentiment analysis |
-| F319 | `f319_discussion_points_search` | Forum discussion sentiment |
+| Market Data | `supabase_market_breadth` | % stocks above MA20/50/100 |
+| Market Data | `supabase_sector_mfi` | Sector Money Flow Index |
+| F319 | `f319_stock_discussion_points` | Ticker-specific F319 analysis |
+| F319 | `f319_discussion_points_search` | Cross-ticker forum sentiment |
 | F319 | `f319_stock_thesis_get` | Stock bull/bear thesis |
 | F319 | `f319_kol_posts_search` | KOL opinions |
-| Zalo | `zalo_daily_recommendations_get` | Daily BUY/SELL signals |
+| Zalo | `zalo_stock_recommendation` | Ticker-specific Zalo recs + heatmap |
+| Zalo | `zalo_daily_recommendations_get` | Cross-ticker BUY/SELL signals |
 | Zalo | `zalo_realtime_alerts_search` | Real-time trading alerts |
-| Zalo | `zalo_market_sentiment_current` | Live market sentiment |
-| Sentiment | `sentiment_dashboard_get` | All-source sentiment aggregation |
+| Zalo | `zalo_daily_market_sentiment` | Daily market sentiment (14 groups) |
+| Zalo | `zalo_market_shifts_search` | Sentiment changes and reversals |
+| Market Intel | `website_market_view` | Multi-source social market view |
 
 ---
 
@@ -729,4 +858,4 @@ include_charts: true             # generate matplotlib charts
 
 ---
 
-*Last Updated: 2026-02-23*
+*Last Updated: 2026-04-13*

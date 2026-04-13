@@ -1,12 +1,17 @@
 # Database Schema Documentation
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-04-13
 **MCP Server**: Pylab MCP (`pylab-mcp`)
 **Note**: Use MCP tools (`mssql_describe_table`, `mongo_describe_collection`) for full schemas on demand.
 
 ---
 
 ## Overview
+
+### Unified Research Tools (Start Here)
+- `get_stock_snapshot` - All-in-one stock overview (market data + financials + sector + news + sentiment + consensus)
+- `query_banking_credit` - Unified banking queries (8 types, consolidates 7 tables)
+- `dashboard_retrieve` - Pre-built stock research dashboards (HTML)
 
 ### Azure SQL - dclab
 - **Tools**: `mssql_read_data`, `mssql_describe_table`, `mssql_export_data`
@@ -20,13 +25,16 @@
 - **Tools**: Same as IRIS with `database: "CEODatabase"` parameter
 - **Collections**: 4 (VEIL fund data, AUM snapshots)
 
-### Supabase (PostgreSQL) - Broker Consensus
-- **Tools**: `supabase_consensus_*` (4 tools)
-- **Data**: Broker research reports, quarterly consensus, sentiment analysis
+### Supabase (PostgreSQL) - Broker Consensus & Market Data
+- **Tools**: `supabase_consensus_*` (4 tools), `supabase_market_breadth`, `supabase_sector_mfi`
+- **Data**: Broker research reports, quarterly consensus, sentiment analysis, market breadth (MA20/50/100), sector Money Flow Index
 
 ### Supabase (PostgreSQL) - Social Sentiment
-- **Tools**: `f319_*` (5 tools), `zalo_*` (5 tools), `sentiment_dashboard_get`
+- **Tools**: `f319_*` (6 tools), `zalo_*` (6 tools)
 - **Data**: F319 forum analysis, Zalo group signals, KOL tracking
+
+### Market Intelligence
+- `website_market_view` - Multi-source social market insights (perpercity API)
 
 ### Utility Tools
 - `find_relevant_tables` - Semantic search across all databases
@@ -384,6 +392,13 @@ AI-analyzed Vietnamese stock forum data from f319.com. Access via dedicated tool
 
 ### Tools
 
+#### `f319_stock_discussion_points`
+Ticker-specific discussion points grouped by analysis with sentiment, signal scores, author info.
+- Filter: `ticker` (required), `days` (1-365), `sentiment_filter`, `signal_score`, `min_points`, `sort_by` (recent/points/signal)
+```
+ticker: "VNM", days: 90, sentiment_filter: "bullish", signal_score: 1
+```
+
 #### `f319_discussion_points_search`
 Search 87K+ AI-extracted discussion points with sentiment analysis.
 - Filter: `ticker`, `sentiment` (bullish/bearish/neutral), `signal_score` (1-5), `informational_value` (High/Medium/Low)
@@ -422,9 +437,16 @@ sector: "Banking", min_quality_score: 70, min_influence_score: 50, sort_by: "acc
 
 ## Supabase - Zalo Investment Groups
 
-Real-time signals from 24 Vietnamese investment Zalo groups. Access via dedicated tools.
+Real-time signals from 14 Vietnamese investment Zalo groups. Access via dedicated tools.
 
 ### Tools
+
+#### `zalo_stock_recommendation`
+Ticker-specific recommendations with heatmap visualization data, targets, stop loss, upside.
+- Filter: `ticker` (required), `days`, `recommendation_type`, `min_confidence`, `risk_level`, `sentiment`, `group_name`, `admin_only`
+```
+ticker: "VNM", days: 30, recommendation_type: "BUY", sort_by: "confidence"
+```
 
 #### `zalo_daily_recommendations_get`
 4,100+ daily stock picks with BUY/SELL/HOLD signals.
@@ -441,11 +463,11 @@ recommendation_type: "BUY", min_confidence: 0.7, sort_by: "confidence"
 alert_type: "PRICE_BREAKOUT", severity: "HIGH", hours: 24, is_resolved: false
 ```
 
-#### `zalo_market_sentiment_current`
-Live sentiment snapshots from 12 groups.
-- Filter: `group_name`, `sentiment` (BULLISH/BEARISH/NEUTRAL/MIXED), `admin_involved_only`
+#### `zalo_daily_market_sentiment`
+Daily market sentiment from 14 groups with market view summaries, key insights, admin involvement.
+- Filter: `analysis_date`, `days_back`, `market_sentiment` (BULLISH/BEARISH/NEUTRAL/MIXED), `group_name`, `min_confidence`, `admin_only`
 ```
-sentiment: "BULLISH", min_significance: 0.7
+market_sentiment: "BULLISH", min_confidence: 0.7, days_back: 7
 ```
 
 #### `zalo_ticker_heatmap_get`
@@ -464,15 +486,27 @@ significance_level: "HIGH", sentiment_after: "BULLISH", hours: 24, min_confidenc
 
 ---
 
-## Sentiment Dashboard
+## Market Data Tools
 
-#### `sentiment_dashboard_get`
-Comprehensive sentiment aggregation from all sources (Broker Consensus + Zalo + F319).
+#### `supabase_market_breadth`
+Market breadth: % of stocks above MA20/50/100, with counts. Daily data.
 ```
-ticker: "VNM", timeframe_hours: 24, include_charts: true
+days: 30, from_date: "2026-03-01", to_date: "2026-04-13"
 ```
 
-Returns: Broker consensus, Zalo sentiment breakdown, F319 discussion analysis, aggregate score.
+#### `supabase_sector_mfi`
+Sector Money Flow Index (0-100). >80=overbought, <20=oversold.
+```
+sector: "Ngân hàng", days: 30
+```
+
+## Market Intelligence
+
+#### `website_market_view`
+Multi-source social market insights with citations (perpercity API).
+```
+focus_area: "vietnam_stocks", days: 1
+```
 
 ---
 
@@ -512,16 +546,24 @@ Returns: Broker consensus, Zalo sentiment breakdown, F319 discussion analysis, a
 | Processed ticker news | `ProcessedTickerNews` | `extractions.ticker`, `timestamp` |
 | Macro research | `macro_research_articles` | `source`, `date_iso` |
 | Semantic macro search | `mongo_vector_search` | `query`, `source`, `days` |
+| **Stock snapshot (start here)** | `get_stock_snapshot` | `ticker` |
+| **Banking analysis** | `query_banking_credit` | `query_type`, `ticker` |
+| **Stock dashboards** | `dashboard_retrieve` | `ticker`, `date`, `latest` |
 | **Broker consensus analysis** | `supabase_consensus_analyze` | `ticker`, `quarter` |
 | **New broker reports** | `supabase_consensus_new_reports` | `days` |
 | **Download broker PDF** | `supabase_consensus_pdf_get` | `ticker`, `broker` |
+| **Market breadth** | `supabase_market_breadth` | `days`, `from_date` |
+| **Sector money flow** | `supabase_sector_mfi` | `sector`, `days` |
+| **F319 ticker analysis** | `f319_stock_discussion_points` | `ticker`, `days` |
 | **Forum sentiment** | `f319_discussion_points_search` | `ticker`, `sentiment` |
 | **KOL opinions** | `f319_kol_posts_search` | `kol_username`, `ticker` |
 | **Stock thesis** | `f319_stock_thesis_get` | `ticker` |
+| **Zalo ticker recs** | `zalo_stock_recommendation` | `ticker`, `days` |
 | **Zalo buy/sell signals** | `zalo_daily_recommendations_get` | `ticker`, `recommendation_type` |
 | **Real-time alerts** | `zalo_realtime_alerts_search` | `alert_type`, `severity` |
-| **Market sentiment** | `zalo_market_sentiment_current` | `sentiment` |
-| **All-source sentiment** | `sentiment_dashboard_get` | `ticker`, `timeframe_hours` |
+| **Daily market sentiment** | `zalo_daily_market_sentiment` | `market_sentiment`, `days_back` |
+| **Sentiment shifts** | `zalo_market_shifts_search` | `significance_level`, `hours` |
+| **Market view** | `website_market_view` | `focus_area`, `days` |
 | **Find tables** | `find_relevant_tables` | `question`, `database` |
 | **Run Python** | `execute_python` | `code` |
 | **VEIL fund data** | `veil_monthly_snapshots` | `database: CEODatabase` |
